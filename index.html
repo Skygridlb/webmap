@@ -8,213 +8,170 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-html,body{height:100%;margin:0}
-#map{height:100vh;width:100vw}
+html,body{
+  height:100%;
+  margin:0;
+  padding:0;
+}
+#map{
+  height:100%;
+  width:100%;
+}
 
-/* SEARCH (top-left) */
-#searchBox{
-  position:absolute;
-  top:10px; left:10px;
+/* =========================
+   TOP UI CONTAINER (SAFE)
+   ========================= */
+#topUI{
+  position:fixed;
+  top:env(safe-area-inset-top, 0px);
+  left:0;
+  right:0;
   z-index:1000;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:10px;
+  pointer-events:none; /* allow map drag */
+}
+
+/* SEARCH */
+#searchBox{
   background:#fff;
   padding:8px 10px;
-  border-radius:10px;
+  border-radius:12px;
   box-shadow:0 2px 10px rgba(0,0,0,.15);
   display:flex;
-  gap:6px;
   align-items:center;
+  gap:8px;
   font-family:Arial,sans-serif;
+  pointer-events:auto;
 }
 #searchInput{
-  width:260px;
-  padding:7px 10px;
-  border:1px solid rgba(0,0,0,.15);
+  flex:1;
+  padding:8px 10px;
   border-radius:10px;
+  border:1px solid rgba(0,0,0,.15);
   outline:none;
 }
-#searchBtn,#clearBtn{
-  padding:7px 10px;
-  cursor:pointer;
-  border:1px solid rgba(0,0,0,.15);
-  border-radius:10px;
-  background:#f7f7f7;
-}
 
-/* MARONITE LOGO (top-right) */
+/* MARONITE LOGO */
 #partnerLogo{
-  position:absolute;
-  top:10px; right:10px;
-  z-index:1000;
+  align-self:flex-end;
   background:#fff;
   padding:6px 10px;
   border-radius:12px;
   box-shadow:0 2px 10px rgba(0,0,0,.18);
+  pointer-events:auto;
 }
 #partnerLogo img{
-  height:52px;
+  height:40px;
   width:auto;
   display:block;
 }
 
-/* BRAND CARD (bottom-left) */
+/* =========================
+   BRAND CARD (BOTTOM)
+   ========================= */
 #brandBox{
-  position:absolute;
-  bottom:15px; left:15px;
+  position:fixed;
+  bottom:env(safe-area-inset-bottom, 10px);
+  left:10px;
+  right:10px;
   z-index:1000;
   background:#fff;
-  padding:14px 18px;
+  padding:10px 12px;
   border-radius:18px;
   box-shadow:0 4px 16px rgba(0,0,0,.22);
   display:flex;
-  gap:20px;
+  gap:12px;
   align-items:center;
-  max-width:720px;
   font-family:Arial,sans-serif;
 }
 
+/* LEFT LOGO */
 .brandLogoCol{
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
-  gap:6px;
-  flex:0 0 auto;
+  gap:4px;
 }
 .poweredBy{
-  font-size:12px;
+  font-size:10.5px;
   font-weight:800;
   color:#000;
-  letter-spacing:.3px;
-  line-height:1;
-  text-align:center;
 }
 .brandLogoCol img{
-  height:72px;
-  width:auto;
-  display:block;
+  height:48px;
 }
 
+/* TEXT */
 .brandText{
   display:flex;
   flex-direction:column;
-  justify-content:center;
-  line-height:1.25;
+  line-height:1.2;
 }
-.brandName{font-size:16px;font-weight:800;letter-spacing:.4px}
-.brandRole{font-size:12.5px;font-weight:600;opacity:.9}
-.brandContact{margin-top:6px;font-size:12.5px}
-.brandContact a{color:#000;text-decoration:none}
-.brandContact a:hover{text-decoration:underline}
-
+.brandName{
+  font-size:14px;
+  font-weight:800;
+}
+.brandRole{
+  font-size:11px;
+  font-weight:600;
+}
+.brandContact{
+  font-size:11px;
+  margin-top:4px;
+}
 .socialRow{
-  margin-top:6px;
   display:flex;
-  gap:8px;
+  gap:6px;
   flex-wrap:wrap;
-  font-size:11.5px;
+  margin-top:4px;
 }
 .socialRow a{
-  padding:4px 10px;
-  border-radius:14px;
+  font-size:10.5px;
+  padding:3px 8px;
+  border-radius:12px;
   background:rgba(0,0,0,.08);
-  font-weight:600;
   text-decoration:none;
   color:#000;
+  font-weight:600;
 }
-
 .brandTagline{
-  margin-top:6px;
-  font-size:11px;
-  letter-spacing:.6px;
+  font-size:10px;
   opacity:.75;
+  margin-top:4px;
 }
 
-/* POLYGON LABELS */
+/* LABELS */
 .polyLabel{
   font-family:Arial,sans-serif;
   font-weight:700;
   font-size:11px;
-  color:#111;
   text-shadow:0 0 2px #fff,0 0 6px #fff;
   pointer-events:none;
-}
-
-/* =========================
-   ✅ MOBILE FIXES
-   ========================= */
-@media (max-width: 600px){
-
-  /* Search becomes full width */
-  #searchBox{
-    left:10px;
-    right:10px;
-    width:auto;
-    padding:8px;
-    gap:6px;
-  }
-  #searchInput{
-    width:100%;
-  }
-  #searchBtn,#clearBtn{
-    display:none; /* keep it clean on mobile; Enter key still works */
-  }
-
-  /* Move Maronite logo BELOW search, prevent overlap */
-  #partnerLogo{
-    top:64px;       /* below the search bar */
-    right:10px;
-    padding:6px 8px;
-  }
-  #partnerLogo img{
-    height:38px;    /* smaller on mobile */
-  }
-
-  /* Make branding card smaller and centered, not huge */
-  #brandBox{
-    left:10px;
-    right:10px;
-    bottom:10px;
-    width:auto;
-    max-width:none;
-    padding:10px 12px;
-    gap:12px;
-    border-radius:16px;
-  }
-
-  .poweredBy{ font-size:10.5px; }
-  .brandLogoCol img{ height:54px; }
-
-  .brandName{ font-size:14px; }
-  .brandRole{ font-size:11px; }
-  .brandContact{ font-size:11px; margin-top:4px; }
-
-  .socialRow{ font-size:10.5px; gap:6px; margin-top:5px; }
-  .socialRow a{ padding:3px 8px; border-radius:12px; }
-
-  .brandTagline{ font-size:10px; margin-top:5px; }
 }
 </style>
 </head>
 
 <body>
 
-<!-- SEARCH -->
-<div id="searchBox">
-  <input id="searchInput" placeholder="Search by ID or Name">
-  <button id="searchBtn">Search</button>
-  <button id="clearBtn">Clear</button>
-</div>
+<!-- TOP UI -->
+<div id="topUI">
+  <div id="searchBox">
+    <input id="searchInput" placeholder="Search by ID or Name">
+  </div>
 
-<!-- MARONITE LOGO -->
-<div id="partnerLogo">
-  <img src="logo/Maronite.png" alt="Maronite">
+  <div id="partnerLogo">
+    <img src="logo/Maronite.png" alt="Maronite">
+  </div>
 </div>
 
 <!-- BRAND CARD -->
 <div id="brandBox">
   <div class="brandLogoCol">
     <div class="poweredBy">Powered by</div>
-    <img src="logo/skygridlb.png" alt="Skygridlb">
+    <img src="logo/skygridlb.png">
   </div>
 
   <div class="brandText">
@@ -223,8 +180,8 @@ html,body{height:100%;margin:0}
     <div class="brandRole">GEO SPATIAL ENGINEER</div>
 
     <div class="brandContact">
-      <a href="tel:+96171709417">+961 71 709 417</a><br>
-      <a href="mailto:fadi@skygridlb.com">fadi@skygridlb.com</a>
+      +961 71 709 417<br>
+      fadi@skygridlb.com
     </div>
 
     <div class="socialRow">
@@ -241,101 +198,58 @@ html,body{height:100%;margin:0}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // MAP
-  var map = L.map('map', { zoomControl:false, maxZoom:20 }).setView([34.38106,35.90435], 18);
-  L.control.zoom({ position:'bottomright' }).addTo(map);
+var map = L.map('map',{zoomControl:false,maxZoom:20})
+  .setView([34.38106,35.90435],18);
+L.control.zoom({position:'bottomright'}).addTo(map);
 
-  // OSM + ORTHO
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(map);
-  L.tileLayer('tiles/{z}/{x}/{y}.png', { minZoom:16, maxZoom:20, opacity:1 }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20}).addTo(map);
+L.tileLayer('tiles/{z}/{x}/{y}.png',{minZoom:16,maxZoom:20}).addTo(map);
 
-  // Data index + label layers
-  var tombsIndex = [];
-  var labelLayers = [];
+var tombsIndex=[], labelLayers=[];
 
-  function refreshLabels(){
-    var show = map.getZoom() >= 18;
-    labelLayers.forEach(function(layer){
-      if (show) {
-        if (!layer.getTooltip()) {
-          layer.bindTooltip(layer._labelId || "", {
-            permanent:true,
-            direction:'center',
-            className:'polyLabel',
-            opacity:1
-          });
-        }
-      } else {
-        if (layer.getTooltip()) layer.unbindTooltip();
-      }
-    });
-  }
-  map.on('zoomend', refreshLabels);
-
-  // Load GeoJSON with popups + photo links
-  fetch('data/Tombs.geojson')
-    .then(function(r){
-      if(!r.ok) throw new Error("GeoJSON not found: data/Tombs.geojson (HTTP " + r.status + ")");
-      return r.json();
-    })
-    .then(function(data){
-      L.geoJSON(data, {
-        style: { color:'#00ff00', weight:2, fillOpacity:0.2 },
-        onEachFeature: function(feature, layer){
-          var p = feature.properties || {};
-          var id = (p.Id ?? "").toString();
-          var name = (p.Name ?? "").toString();
-          var photoUrl = "photos/" + id + ".jpg";
-
-          layer.bindPopup(
-            "<b>Name:</b> " + (name || "") + "<br>" +
-            "<b>ID:</b> " + (id || "") + "<br><br>" +
-            '<a href="' + photoUrl + '" target="_blank">📷 Open photo</a>'
-          );
-
-          layer._labelId = id;
-          labelLayers.push(layer);
-
-          tombsIndex.push({
-            id: id.toLowerCase(),
-            name: name.toLowerCase(),
-            layer: layer
-          });
-        }
-      }).addTo(map);
-
-      refreshLabels();
-    })
-    .catch(function(err){
-      alert(err.message);
-      console.log(err);
-    });
-
-  // Search
-  function doSearch(){
-    var q = (document.getElementById('searchInput').value || "").trim().toLowerCase();
-    if(!q) return;
-
-    var hit = tombsIndex.find(x => x.id === q) || tombsIndex.find(x => x.name.includes(q));
-    if(!hit){
-      alert("Not found");
-      return;
+function refreshLabels(){
+  var show = map.getZoom() >= 18;
+  labelLayers.forEach(l=>{
+    if(show){
+      if(!l.getTooltip())
+        l.bindTooltip(l._labelId,{permanent:true,direction:'center',className:'polyLabel'});
+    } else {
+      if(l.getTooltip()) l.unbindTooltip();
     }
-
-    var layer = hit.layer;
-    if(layer.getBounds) map.fitBounds(layer.getBounds(), { maxZoom:20 });
-    layer.openPopup();
-  }
-
-  function clearSearch(){
-    document.getElementById('searchInput').value = "";
-  }
-
-  document.getElementById('searchBtn').addEventListener('click', doSearch);
-  document.getElementById('clearBtn').addEventListener('click', clearSearch);
-  document.getElementById('searchInput').addEventListener('keydown', function(e){
-    if(e.key === "Enter") doSearch();
   });
+}
+map.on('zoomend',refreshLabels);
+
+fetch('data/Tombs.geojson')
+.then(r=>r.json())
+.then(data=>{
+  L.geoJSON(data,{
+    style:{color:'#00ff00',weight:2,fillOpacity:.2},
+    onEachFeature:(f,l)=>{
+      let id=(f.properties?.Id||'').toString();
+      let photo="photos/"+id+".jpg";
+      l.bindPopup(
+        "<b>ID:</b> "+id+"<br><br>"+
+        '<a href="'+photo+'" target="_blank">📷 Open photo</a>'
+      );
+      l._labelId=id;
+      labelLayers.push(l);
+      tombsIndex.push({id:id.toLowerCase(),layer:l});
+    }
+  }).addTo(map);
+  refreshLabels();
+});
+
+document.getElementById('searchInput').addEventListener('keydown',e=>{
+  if(e.key==="Enter"){
+    let q=e.target.value.toLowerCase();
+    let hit=tombsIndex.find(x=>x.id===q);
+    if(hit){
+      map.fitBounds(hit.layer.getBounds(),{maxZoom:20});
+      hit.layer.openPopup();
+    }
+  }
+});
 </script>
 
 </body>
