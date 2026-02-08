@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skygridlb – Cemetery Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html,body{height:100%;margin:0}
+#map{height:100vh;width:100vw}
+
+/* SEARCH */
+#searchBox{
+  position:absolute;top:10px;left:10px;z-index:1000;
+  background:#fff;padding:8px;border-radius:8px;
+  box-shadow:0 2px 10px rgba(0,0,0,.15);
+  display:flex;gap:6px;align-items:center;
+  font-family:Arial,sans-serif
+}
+#searchInput{width:240px;padding:6px 8px}
+#searchBtn,#clearBtn{padding:6px 10px;cursor:pointer}
+
+/* PARTNER LOGO TOP RIGHT */
+#partnerLogo{
+  position:absolute;top:10px;right:10px;z-index:1000;
+  background:#fff;padding:6px 10px;border-radius:10px;
+  box-shadow:0 2px 10px rgba(0,0,0,.18)
+}
+#partnerLogo img{height:48px;width:auto;display:block}
+
+/* BRAND CARD */
+#brandBox{
+  position:absolute;
+  bottom:15px;left:15px;
+  z-index:1000;
+  background:#fff;
+  padding:14px 18px;
+  border-radius:18px;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);
+  display:flex;
+  gap:20px;
+  align-items:center;
+  width:auto;            /* no extra white space */
+  max-width:700px;
+  font-family:Arial,sans-serif;
+}
+
+/* LEFT COLUMN: Powered by + logo perfectly centered */
+.brandLogoCol{
+  display:flex;
+  flex-direction:column;
+  align-items:center;    /* center text and logo on same axis */
+  justify-content:center;
+  gap:6px;
+}
+.poweredBy{
+  font-size:12px;
+  font-weight:800;       /* ✅ bold */
+  color:#000;            /* ✅ black */
+  letter-spacing:.3px;
+  line-height:1;
+  text-align:center;     /* ✅ centered */
+}
+.brandLogoCol img{
+  height:72px;
+  width:auto;
+  display:block;
+}
+
+/* RIGHT COLUMN */
+.brandText{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  line-height:1.25;
+}
+.brandName{
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:.4px;
+}
+.brandRole{
+  font-size:12.5px;
+  font-weight:600;
+  opacity:.9;
+}
+.brandContact{
+  margin-top:6px;
+  font-size:12.5px;
+}
+.brandContact a{
+  color:#000;
+  text-decoration:none;
+}
+.brandContact a:hover{ text-decoration:underline; }
+
+.socialRow{
+  margin-top:6px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  font-size:11.5px;
+}
+.socialRow a{
+  padding:4px 10px;
+  border-radius:14px;
+  background:rgba(0,0,0,.08);
+  font-weight:600;
+  text-decoration:none;
+  color:#000;
+}
+.socialRow a:hover{ text-decoration:underline; }
+
+.brandTagline{
+  margin-top:6px;
+  font-size:11px;
+  letter-spacing:.6px;
+  opacity:.75;
+}
+
+/* LABELS */
+.polyLabel{
+  font-family:Arial,sans-serif;
+  font-weight:700;
+  font-size:11px;
+  color:#111;
+  text-shadow:0 0 2px #fff,0 0 6px #fff;
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SEARCH -->
+<div id="searchBox">
+  <input id="searchInput" placeholder="Search by ID or Name">
+  <button id="searchBtn">Search</button>
+  <button id="clearBtn">Clear</button>
+</div>
+
+<!-- MARONITE LOGO -->
+<div id="partnerLogo">
+  <img src="logo/Maronite.png" alt="Maronite">
+</div>
+
+<!-- BRAND CARD -->
+<div id="brandBox">
+  <div class="brandLogoCol">
+    <div class="poweredBy">Powered by</div>
+    <img src="logo/skygridlb.png" alt="Skygridlb">
+  </div>
+
+  <div class="brandText">
+    <div class="brandName">FADI KASS HANNA</div>
+    <div class="brandRole">OWNER | GENERAL MANAGER</div>
+    <div class="brandRole">GEO SPATIAL ENGINEER</div>
+
+    <div class="brandContact">
+      <a href="tel:+96171709417">+961 71 709 417</a><br>
+      <a href="mailto:fadi@skygridlb.com">fadi@skygridlb.com</a>
+    </div>
+
+    <div class="socialRow">
+      <a href="https://facebook.com/skygridlb" target="_blank">Facebook</a>
+      <a href="https://instagram.com/skygridlb" target="_blank">Instagram</a>
+      <a href="https://linkedin.com/company/skygridlb" target="_blank">LinkedIn</a>
+    </div>
+
+    <div class="brandTagline">YOUR SPACE • OUR DATA</div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // MAP
+  var map = L.map('map', { zoomControl:false, maxZoom:20 }).setView([34.38106,35.90435], 18);
+  L.control.zoom({ position:'bottomright' }).addTo(map);
+
+  // OSM
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(map);
+
+  // ORTHO
+  L.tileLayer('tiles/{z}/{x}/{y}.png', { minZoom:16, maxZoom:20, opacity:1 }).addTo(map);
+
+  // Index + labels
+  var tombsIndex = [];     // {id,name,layer}
+  var labelLayers = [];    // store layers for label toggling
+
+  function refreshLabels(){
+    var show = map.getZoom() >= 18;
+    labelLayers.forEach(function(layer){
+      if (show) {
+        if (!layer.getTooltip()) {
+          layer.bindTooltip(layer._labelId || "", {
+            permanent:true,
+            direction:'center',
+            className:'polyLabel',
+            opacity:1
+          });
+        }
+      } else {
+        if (layer.getTooltip()) layer.unbindTooltip();
+      }
+    });
+  }
+  map.on('zoomend', refreshLabels);
+
+  // GEOJSON with POPUPS + PHOTO LINKS restored
+  fetch('data/Tombs.geojson')
+    .then(function(r){
+      if(!r.ok) throw new Error("GeoJSON not found: data/Tombs.geojson (HTTP " + r.status + ")");
+      return r.json();
+    })
+    .then(function(data){
+      L.geoJSON(data, {
+        style: { color:'#00ff00', weight:2, fillOpacity:0.2 },
+        onEachFeature: function(feature, layer){
+          var p = feature.properties || {};
+          var id = (p.Id ?? "").toString();
+          var name = (p.Name ?? "").toString();
+
+          var photoUrl = "photos/" + id + ".jpg";
+
+          // ✅ popup restored
+          layer.bindPopup(
+            "<b>Name:</b> " + (name || "") + "<br>" +
+            "<b>ID:</b> " + (id || "") + "<br><br>" +
+            '<a href="' + photoUrl + '" target="_blank">📷 Open photo</a>'
+          );
+
+          // store for search + labels
+          layer._labelId = id;
+          labelLayers.push(layer);
+
+          tombsIndex.push({
+            id: id.toLowerCase(),
+            name: name.toLowerCase(),
+            layer: layer
+          });
+        }
+      }).addTo(map);
+
+      // apply initial label state
+      refreshLabels();
+    })
+    .catch(function(err){
+      alert(err.message);
+      console.log(err);
+    });
+
+  // SEARCH (now opens popup too)
+  function doSearch(){
+    var q = (document.getElementById('searchInput').value || "").trim().toLowerCase();
+    if(!q) return;
+
+    var hit = tombsIndex.find(x => x.id === q) || tombsIndex.find(x => x.name.includes(q));
+    if(!hit){
+      alert("Not found");
+      return;
+    }
+
+    var layer = hit.layer;
+    if(layer.getBounds) map.fitBounds(layer.getBounds(), { maxZoom:20 });
+    layer.openPopup(); // ✅ popup opens
+  }
+
+  function clearSearch(){
+    document.getElementById('searchInput').value = "";
+  }
+
+  document.getElementById('searchBtn').addEventListener('click', doSearch);
+  document.getElementById('clearBtn').addEventListener('click', clearSearch);
+  document.getElementById('searchInput').addEventListener('keydown', function(e){
+    if(e.key === "Enter") doSearch();
+  });
+</script>
+
+</body>
+</html>
