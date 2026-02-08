@@ -11,29 +11,55 @@
 html,body{height:100%;margin:0}
 #map{height:100vh;width:100vw}
 
-/* SEARCH */
+/* SEARCH (top-left) */
 #searchBox{
-  position:absolute;top:10px;left:10px;z-index:1000;
-  background:#fff;padding:8px;border-radius:8px;
+  position:absolute;
+  top:10px; left:10px;
+  z-index:1000;
+  background:#fff;
+  padding:8px 10px;
+  border-radius:10px;
   box-shadow:0 2px 10px rgba(0,0,0,.15);
-  display:flex;gap:6px;align-items:center;
-  font-family:Arial,sans-serif
+  display:flex;
+  gap:6px;
+  align-items:center;
+  font-family:Arial,sans-serif;
 }
-#searchInput{width:240px;padding:6px 8px}
-#searchBtn,#clearBtn{padding:6px 10px;cursor:pointer}
+#searchInput{
+  width:260px;
+  padding:7px 10px;
+  border:1px solid rgba(0,0,0,.15);
+  border-radius:10px;
+  outline:none;
+}
+#searchBtn,#clearBtn{
+  padding:7px 10px;
+  cursor:pointer;
+  border:1px solid rgba(0,0,0,.15);
+  border-radius:10px;
+  background:#f7f7f7;
+}
 
-/* PARTNER LOGO TOP RIGHT */
+/* MARONITE LOGO (top-right) */
 #partnerLogo{
-  position:absolute;top:10px;right:10px;z-index:1000;
-  background:#fff;padding:6px 10px;border-radius:10px;
-  box-shadow:0 2px 10px rgba(0,0,0,.18)
+  position:absolute;
+  top:10px; right:10px;
+  z-index:1000;
+  background:#fff;
+  padding:6px 10px;
+  border-radius:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
 }
-#partnerLogo img{height:48px;width:auto;display:block}
+#partnerLogo img{
+  height:52px;
+  width:auto;
+  display:block;
+}
 
-/* BRAND CARD */
+/* BRAND CARD (bottom-left) */
 #brandBox{
   position:absolute;
-  bottom:15px;left:15px;
+  bottom:15px; left:15px;
   z-index:1000;
   background:#fff;
   padding:14px 18px;
@@ -42,26 +68,25 @@ html,body{height:100%;margin:0}
   display:flex;
   gap:20px;
   align-items:center;
-  width:auto;            /* no extra white space */
-  max-width:700px;
+  max-width:720px;
   font-family:Arial,sans-serif;
 }
 
-/* LEFT COLUMN: Powered by + logo perfectly centered */
 .brandLogoCol{
   display:flex;
   flex-direction:column;
-  align-items:center;    /* center text and logo on same axis */
+  align-items:center;
   justify-content:center;
   gap:6px;
+  flex:0 0 auto;
 }
 .poweredBy{
   font-size:12px;
-  font-weight:800;       /* ✅ bold */
-  color:#000;            /* ✅ black */
+  font-weight:800;
+  color:#000;
   letter-spacing:.3px;
   line-height:1;
-  text-align:center;     /* ✅ centered */
+  text-align:center;
 }
 .brandLogoCol img{
   height:72px;
@@ -69,32 +94,17 @@ html,body{height:100%;margin:0}
   display:block;
 }
 
-/* RIGHT COLUMN */
 .brandText{
   display:flex;
   flex-direction:column;
   justify-content:center;
   line-height:1.25;
 }
-.brandName{
-  font-size:16px;
-  font-weight:800;
-  letter-spacing:.4px;
-}
-.brandRole{
-  font-size:12.5px;
-  font-weight:600;
-  opacity:.9;
-}
-.brandContact{
-  margin-top:6px;
-  font-size:12.5px;
-}
-.brandContact a{
-  color:#000;
-  text-decoration:none;
-}
-.brandContact a:hover{ text-decoration:underline; }
+.brandName{font-size:16px;font-weight:800;letter-spacing:.4px}
+.brandRole{font-size:12.5px;font-weight:600;opacity:.9}
+.brandContact{margin-top:6px;font-size:12.5px}
+.brandContact a{color:#000;text-decoration:none}
+.brandContact a:hover{text-decoration:underline}
 
 .socialRow{
   margin-top:6px;
@@ -111,7 +121,6 @@ html,body{height:100%;margin:0}
   text-decoration:none;
   color:#000;
 }
-.socialRow a:hover{ text-decoration:underline; }
 
 .brandTagline{
   margin-top:6px;
@@ -120,7 +129,7 @@ html,body{height:100%;margin:0}
   opacity:.75;
 }
 
-/* LABELS */
+/* POLYGON LABELS */
 .polyLabel{
   font-family:Arial,sans-serif;
   font-weight:700;
@@ -128,6 +137,61 @@ html,body{height:100%;margin:0}
   color:#111;
   text-shadow:0 0 2px #fff,0 0 6px #fff;
   pointer-events:none;
+}
+
+/* =========================
+   ✅ MOBILE FIXES
+   ========================= */
+@media (max-width: 600px){
+
+  /* Search becomes full width */
+  #searchBox{
+    left:10px;
+    right:10px;
+    width:auto;
+    padding:8px;
+    gap:6px;
+  }
+  #searchInput{
+    width:100%;
+  }
+  #searchBtn,#clearBtn{
+    display:none; /* keep it clean on mobile; Enter key still works */
+  }
+
+  /* Move Maronite logo BELOW search, prevent overlap */
+  #partnerLogo{
+    top:64px;       /* below the search bar */
+    right:10px;
+    padding:6px 8px;
+  }
+  #partnerLogo img{
+    height:38px;    /* smaller on mobile */
+  }
+
+  /* Make branding card smaller and centered, not huge */
+  #brandBox{
+    left:10px;
+    right:10px;
+    bottom:10px;
+    width:auto;
+    max-width:none;
+    padding:10px 12px;
+    gap:12px;
+    border-radius:16px;
+  }
+
+  .poweredBy{ font-size:10.5px; }
+  .brandLogoCol img{ height:54px; }
+
+  .brandName{ font-size:14px; }
+  .brandRole{ font-size:11px; }
+  .brandContact{ font-size:11px; margin-top:4px; }
+
+  .socialRow{ font-size:10.5px; gap:6px; margin-top:5px; }
+  .socialRow a{ padding:3px 8px; border-radius:12px; }
+
+  .brandTagline{ font-size:10px; margin-top:5px; }
 }
 </style>
 </head>
@@ -181,15 +245,13 @@ html,body{height:100%;margin:0}
   var map = L.map('map', { zoomControl:false, maxZoom:20 }).setView([34.38106,35.90435], 18);
   L.control.zoom({ position:'bottomright' }).addTo(map);
 
-  // OSM
+  // OSM + ORTHO
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 }).addTo(map);
-
-  // ORTHO
   L.tileLayer('tiles/{z}/{x}/{y}.png', { minZoom:16, maxZoom:20, opacity:1 }).addTo(map);
 
-  // Index + labels
-  var tombsIndex = [];     // {id,name,layer}
-  var labelLayers = [];    // store layers for label toggling
+  // Data index + label layers
+  var tombsIndex = [];
+  var labelLayers = [];
 
   function refreshLabels(){
     var show = map.getZoom() >= 18;
@@ -210,7 +272,7 @@ html,body{height:100%;margin:0}
   }
   map.on('zoomend', refreshLabels);
 
-  // GEOJSON with POPUPS + PHOTO LINKS restored
+  // Load GeoJSON with popups + photo links
   fetch('data/Tombs.geojson')
     .then(function(r){
       if(!r.ok) throw new Error("GeoJSON not found: data/Tombs.geojson (HTTP " + r.status + ")");
@@ -223,17 +285,14 @@ html,body{height:100%;margin:0}
           var p = feature.properties || {};
           var id = (p.Id ?? "").toString();
           var name = (p.Name ?? "").toString();
-
           var photoUrl = "photos/" + id + ".jpg";
 
-          // ✅ popup restored
           layer.bindPopup(
             "<b>Name:</b> " + (name || "") + "<br>" +
             "<b>ID:</b> " + (id || "") + "<br><br>" +
             '<a href="' + photoUrl + '" target="_blank">📷 Open photo</a>'
           );
 
-          // store for search + labels
           layer._labelId = id;
           labelLayers.push(layer);
 
@@ -245,7 +304,6 @@ html,body{height:100%;margin:0}
         }
       }).addTo(map);
 
-      // apply initial label state
       refreshLabels();
     })
     .catch(function(err){
@@ -253,7 +311,7 @@ html,body{height:100%;margin:0}
       console.log(err);
     });
 
-  // SEARCH (now opens popup too)
+  // Search
   function doSearch(){
     var q = (document.getElementById('searchInput').value || "").trim().toLowerCase();
     if(!q) return;
@@ -266,7 +324,7 @@ html,body{height:100%;margin:0}
 
     var layer = hit.layer;
     if(layer.getBounds) map.fitBounds(layer.getBounds(), { maxZoom:20 });
-    layer.openPopup(); // ✅ popup opens
+    layer.openPopup();
   }
 
   function clearSearch(){
