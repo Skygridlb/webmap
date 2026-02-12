@@ -53,18 +53,72 @@ html,body{ height:100%; margin:0; }
 }
 .searchBtn:active{ background:#ddd; }
 
-/* Street labels along line (textPath) */
-.streetText{
-  text-shadow: 0 0 2px rgba(0,0,0,0.80), 0 0 7px rgba(0,0,0,0.55);
+/* Partner logo top-right */
+#partnerLogo{
+  align-self:flex-end;
+  background:#fff;
+  padding:6px 10px;
+  border-radius:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
+  pointer-events:auto;
 }
+#partnerLogo img{ height:40px; }
 
-/* Grave tooltip labels */
+/* Brand card bottom */
+#brandBox{
+  position:fixed;
+  bottom:env(safe-area-inset-bottom,10px);
+  left:10px; right:10px;
+  z-index:2000;
+  background:#fff;
+  padding:10px 14px;
+  border-radius:18px;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);
+  display:flex;
+  gap:14px;
+  align-items:center;
+  font-family:Arial,sans-serif;
+  pointer-events:auto;
+}
+.brandLogoCol{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+.poweredBy{ font-size:10px; font-weight:800; }
+.brandLogoCol img{ height:48px; }
+.brandText{ line-height:1.2; }
+.brandName{ font-size:14px; font-weight:800; }
+.brandRole{ font-size:11px; font-weight:600; }
+.brandContact{ font-size:11px; margin-top:4px; }
+.socialRow{ display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.socialRow a{
+  font-size:10.5px;
+  padding:4px 10px;
+  border-radius:12px;
+  background:rgba(0,0,0,.08);
+  text-decoration:none;
+  color:#000;
+  font-weight:700;
+}
+.brandTagline{ font-size:10px; opacity:.75; margin-top:4px; }
+
+/* ================= LABEL STYLES ================= */
+
+/* Graves tooltip labels */
 .graveLabel{
   font-family: Arial, sans-serif;
   font-weight: 800;
   font-size: 11px;
   text-shadow: 0 0 3px #fff, 0 0 7px #fff;
   pointer-events: none;
+}
+
+/* Street text: yellow fill + dark "stroke" effect via multiple shadows (matches screenshot style) */
+.streetText{
+  /* give a “outlined” look */
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,0.75),
+     1px -1px 0 rgba(0,0,0,0.75),
+    -1px  1px 0 rgba(0,0,0,0.75),
+     1px  1px 0 rgba(0,0,0,0.75),
+     0px  0px 8px rgba(255, 255, 0, 0.55); /* yellow glow/shadow */
 }
 </style>
 </head>
@@ -77,6 +131,37 @@ html,body{ height:100%; margin:0; }
     <input id="searchInput" placeholder="Search by Grave_ID">
     <button id="searchBtn" class="searchBtn">Search</button>
     <button id="clearBtn" class="searchBtn">Clear</button>
+  </div>
+
+  <div id="partnerLogo">
+    <img src="logo/Maronite.png" alt="Maronite">
+  </div>
+</div>
+
+<!-- BRAND CARD -->
+<div id="brandBox">
+  <div class="brandLogoCol">
+    <div class="poweredBy">Powered by</div>
+    <img src="logo/skygridlb.png" alt="Skygridlb">
+  </div>
+
+  <div class="brandText">
+    <div class="brandName">FADI KASS HANNA</div>
+    <div class="brandRole">OWNER | GENERAL MANAGER</div>
+    <div class="brandRole">GEO SPATIAL ENGINEER</div>
+
+    <div class="brandContact">
+      +961 71 709 417<br>
+      fadi@skygridlb.com
+    </div>
+
+    <div class="socialRow">
+      <a href="https://facebook.com/skygridlb" target="_blank" rel="noopener">Facebook</a>
+      <a href="https://instagram.com/skygridlb" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://linkedin.com/company/skygridlb" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+
+    <div class="brandTagline">YOUR SPACE • OUR DATA</div>
   </div>
 </div>
 
@@ -97,11 +182,13 @@ const GRAVE_LABEL_Z  = 22;
 // tiles
 const TILES_MAX_NATIVE_Z = 21; // change if you truly have tiles/22 or tiles/23 folders
 
-// street style & label style
-const STREET_COLOR = 'rgb(85,255,0)'; // requested
-const STREET_WEIGHT = 2.5;
+// street line style (you asked earlier for light green)
+const STREET_LINE_COLOR = 'rgb(85,255,0)';
+const STREET_WEIGHT = 3.5;
 
-const STREET_LABEL_SIZE = '16px';
+// street label style (like screenshot: yellow text with dark outline and yellow glow)
+const STREET_LABEL_COLOR = '#ffd400';      // yellow fill
+const STREET_LABEL_SIZE  = '16px';
 const STREET_LABEL_WEIGHT = '900';
 
 /* ================= MAP ================= */
@@ -156,7 +243,7 @@ function refreshLabels(){
           offset: 0,
           attributes: {
             'class': 'streetText',
-            fill: STREET_COLOR,
+            fill: STREET_LABEL_COLOR,
             'font-size': STREET_LABEL_SIZE,
             'font-weight': STREET_LABEL_WEIGHT
           }
@@ -210,7 +297,7 @@ fetch('data/Streets.geojson')
   .then(data => {
     const streetsLayer = L.geoJSON(data, {
       style: () => ({
-        color: STREET_COLOR,
+        color: STREET_LINE_COLOR,
         weight: STREET_WEIGHT,
         opacity: 0.95
       }),
