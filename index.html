@@ -6,296 +6,152 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.css"/>
 
 <style>
 html,body{ height:100%; margin:0; }
 #map{ height:100%; width:100%; }
 
-/* ================= TOP UI ================= */
-#topUI{
-  position:fixed;
-  top:env(safe-area-inset-top,0px);
-  left:0; right:0;
-  z-index:2000;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  padding:10px;
-  pointer-events:none;
-}
-#searchBox{
-  background:#fff;
-  padding:8px;
-  border-radius:14px;
-  box-shadow:0 2px 10px rgba(0,0,0,.15);
-  display:flex;
-  gap:6px;
-  align-items:center;
-  font-family:Arial,sans-serif;
-  pointer-events:auto;
-}
-#searchInput{
-  flex:1;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,.2);
-  font-size:14px;
-  outline:none;
-}
-.searchBtn{
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,.2);
-  background:#f2f2f2;
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-}
-.searchBtn:active{ background:#ddd; }
-
-/* LOGO */
-#partnerLogo{
-  align-self:flex-end;
-  background:#fff;
-  padding:6px 10px;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.18);
-  pointer-events:auto;
-}
-#partnerLogo img{ height:40px; }
-
-/* ================= BRAND CARD ================= */
-#brandBox{
-  position:fixed;
-  bottom:env(safe-area-inset-bottom,10px);
-  left:10px; right:10px;
-  z-index:2000;
-  background:#fff;
-  padding:10px 14px;
-  border-radius:18px;
-  box-shadow:0 4px 16px rgba(0,0,0,.22);
-  display:flex;
-  gap:14px;
-  align-items:center;
-  font-family:Arial,sans-serif;
-}
-.brandLogoCol{ display:flex; flex-direction:column; align-items:center; gap:4px; }
-.poweredBy{ font-size:10px; font-weight:800; }
-.brandLogoCol img{ height:48px; }
-.brandText{ line-height:1.2; }
-.brandName{ font-size:14px; font-weight:800; }
-.brandRole{ font-size:11px; font-weight:600; }
-.brandContact{ font-size:11px; margin-top:4px; }
-.socialRow{ display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
-.socialRow a{
-  font-size:10.5px;
-  padding:4px 10px;
-  border-radius:12px;
-  background:rgba(0,0,0,.08);
-  text-decoration:none;
-  color:#000;
-  font-weight:700;
-}
-.brandTagline{ font-size:10px; opacity:.75; margin-top:4px; }
-
-/* LABELS (supports Arabic) */
+/* Label style */
 .vecLabel{
   font-family: Arial, sans-serif;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 11px;
-  text-shadow: 0 0 2px #fff, 0 0 6px #fff;
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff;
   pointer-events: none;
-  direction: rtl;
-  unicode-bidi: plaintext;
-}
-
-/* Small status bubble (helps debugging on phones) */
-#status{
-  position:fixed;
-  top:70px;
-  left:10px;
-  z-index:3000;
-  background:#fff;
-  padding:8px 10px;
-  border-radius:10px;
-  box-shadow:0 2px 10px rgba(0,0,0,.2);
-  font:12px Arial;
-  max-width: 70vw;
-  opacity: 0.95;
 }
 </style>
 </head>
 
 <body>
 
-<!-- TOP UI -->
-<div id="topUI">
-  <div id="searchBox">
-    <input id="searchInput" placeholder="Search by Grave_ID">
-    <button id="searchBtn" class="searchBtn">Search</button>
-    <button id="clearBtn" class="searchBtn">Clear</button>
-  </div>
-
-  <div id="partnerLogo">
-    <img src="logo/Maronite.png" alt="Maronite">
-  </div>
-</div>
-
-<!-- BRAND CARD -->
-<div id="brandBox">
-  <div class="brandLogoCol">
-    <div class="poweredBy">Powered by</div>
-    <img src="logo/skygridlb.png" alt="Skygridlb">
-  </div>
-
-  <div class="brandText">
-    <div class="brandName">FADI KASS HANNA</div>
-    <div class="brandRole">OWNER | GENERAL MANAGER</div>
-    <div class="brandRole">GEO SPATIAL ENGINEER</div>
-
-    <div class="brandContact">
-      +961 71 709 417<br>
-      fadi@skygridlb.com
-    </div>
-
-    <div class="socialRow">
-      <a href="https://facebook.com/skygridlb" target="_blank" rel="noopener">Facebook</a>
-      <a href="https://instagram.com/skygridlb" target="_blank" rel="noopener">Instagram</a>
-      <a href="https://linkedin.com/company/skygridlb" target="_blank" rel="noopener">LinkedIn</a>
-    </div>
-
-    <div class="brandTagline">YOUR SPACE • OUR DATA</div>
-  </div>
-</div>
-
-<div id="status">Loading…</div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
+
 <script>
-/** ZOOM RULES **/
+
+/* ================= SETTINGS ================= */
+
 const MIN_Z = 16;
 const MAX_Z = 23;
-const LABEL_Z = 18;     // show labels from this zoom and above
-const TILES_MAX_NATIVE_Z = 21; // change ONLY if you truly have tiles/22 and tiles/23 folders
+const GRAVE_LABEL_Z = 20;   // graves start at zoom 20
+const TILES_MAX_NATIVE_Z = 21; // change if you have tiles 22/23
 
-const statusEl = document.getElementById("status");
-function setStatus(msg){ statusEl.innerHTML = msg; }
+/* ================= MAP ================= */
 
-/** MAP **/
 var map = L.map('map', {
-  zoomControl: false,
   minZoom: MIN_Z,
   maxZoom: MAX_Z
 }).setView([34.38106, 35.90435], 18);
 
-L.control.zoom({position:'bottomright'}).addTo(map);
+/* ================= RASTER ONLY ================= */
 
-/** ORTHO / RASTER TILES (NO OSM) **/
 L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
-  maxZoom: MAX_Z,           // allow zooming to 23
+  maxZoom: MAX_Z,
   minNativeZoom: MIN_Z,
-  maxNativeZoom: TILES_MAX_NATIVE_Z, // prevents blank tiles above your real zoom
-  tms: false                // if tiles still don't show, change to true
+  maxNativeZoom: TILES_MAX_NATIVE_Z,
+  tms: false
 }).addTo(map);
 
-/** LABEL MANAGEMENT **/
-var labelLayers = [];
-function refreshLabels(){
-  var show = map.getZoom() >= LABEL_Z;
-  labelLayers.forEach(l => {
+/* ================= LABEL MANAGEMENT ================= */
+
+var graveLayers = [];
+
+function refreshGraveLabels(){
+  let show = map.getZoom() >= GRAVE_LABEL_Z;
+
+  graveLayers.forEach(l => {
     if(show){
       if(!l.getTooltip()){
         l.bindTooltip(l._labelText || '', {
           permanent: true,
           direction: 'center',
-          className: 'vecLabel',
-          opacity: 0.95
+          className: 'vecLabel'
         });
       }
-    }else{
+    } else {
       if(l.getTooltip()) l.unbindTooltip();
     }
   });
 }
-map.on('}_zoomend', refreshLabels); // <-- will be corrected below
-map.off('}_zoomend');              // safety
 
-map.on('zoomend', refreshLabels);
+map.on('zoomend', refreshGraveLabels);
 
-/** SEARCH INDEX (Graves) **/
-var gravesIndex = [];
+/* ================= GRAVES ================= */
 
-/** Helper to load GeoJSON with visible status **/
-async function loadGeoJSON(url, layerName, buildLayerFn){
-  try{
-    setStatus(`Loading ${layerName}…`);
-    const r = await fetch(url, { cache: "no-store" });
-    if(!r.ok) throw new Error(`${layerName} HTTP ${r.status}`);
-    const data = await r.json();
-    const layer = buildLayerFn(data);
-    setStatus(`${layerName} loaded ✅ (${data.features?.length || 0} features)`);
-    return layer;
-  }catch(e){
-    console.error(e);
-    setStatus(`❌ ${layerName} failed: ${e.message}`);
-    return null;
-  }
-}
+fetch('data/Graves.geojson')
+  .then(r => r.json())
+  .then(data => {
 
-/** GRAVES **/
-loadGeoJSON('data/Graves.geojson', 'Graves', (data) => {
-  return L.geoJSON(data, {
-    style: { color:'#00ff00', weight:2, fillOpacity:0.2 },
-    onEachFeature: (f, l) => {
-      const gid = (f.properties?.Grave_ID ?? '').toString().trim();
+    L.geoJSON(data, {
 
-      l._labelText = gid;
-      labelLayers.push(l);
+      /* Red outline only */
+      style: function(feature){
+        return {
+          color: '#ff0000',
+          weight: 1.5,
+          fill: false
+        };
+      },
 
-      l.bindPopup(`<b>Grave_ID:</b> ${gid}`);
+      onEachFeature: function(feature, layer){
 
-      if(gid) gravesIndex.push({ idLower: gid.toLowerCase(), layer: l });
-    }
-  }).addTo(map);
-}).then(() => refreshLabels());
+        const gid = feature.properties?.Grave_ID || '';
 
-/** STREETS
- * IMPORTANT: Streets must be EPSG:4326 (lat/long). If your file is UTM meters, it will NOT show.
- * Re-export in QGIS to EPSG:4326 then push to GitHub.
- **/
-loadGeoJSON('data/Streets.geojson', 'Streets', (data) => {
-  const streetsLayer = L.geoJSON(data, {
-    style: { color:'#ff0000', weight:6, opacity:1 }, // strong for testing
-    onEachFeature: (f, l) => {
-      const sname = (f.properties?.StreetName ?? '').toString().trim();
-      l._labelText = sname;
-      labelLayers.push(l);
-      l.bindPopup(`<b>StreetName:</b> ${sname}`);
-    }
-  }).addTo(map);
+        layer._labelText = gid;
+        graveLayers.push(layer);
 
-  // keep streets above graves
-  streetsLayer.bringToFront();
-  return streetsLayer;
-}).then(() => refreshLabels());
+        layer.bindPopup(`<b>Grave_ID:</b> ${gid}`);
 
-/** SEARCH (by Grave_ID) **/
-function doSearch(){
-  let q = document.getElementById('searchInput').value.trim().toLowerCase();
-  if(!q) return;
+      }
 
-  let hit = gravesIndex.find(x => x.idLower === q);
-  if(hit){
-    map.fitBounds(hit.layer.getBounds(), { maxZoom: MAX_Z });
-    hit.layer.openPopup();
-  }
-}
-document.getElementById('searchBtn').onclick = doSearch;
-document.getElementById('clearBtn').onclick = () => { document.getElementById('searchInput').value=""; };
-document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==="Enter") doSearch(); });
+    }).addTo(map);
+
+    refreshGraveLabels();
+  });
+
+
+/* ================= STREETS ================= */
+/* IMPORTANT: Must be EPSG:4326 (lat/long) */
+
+fetch('data/Streets.geojson')
+  .then(r => r.json())
+  .then(data => {
+
+    L.geoJSON(data, {
+
+      /* Green streets */
+      style: function(feature){
+        return {
+          color: '#008000',
+          weight: 2.5
+        };
+      },
+
+      onEachFeature: function(feature, layer){
+
+        const name = feature.properties?.StreetName || '';
+
+        /* Parallel label centered on line */
+        layer.setText(name, {
+          center: true,
+          offset: 0,
+          attributes: {
+            fill: '#008000',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }
+        });
+
+      }
+
+    }).addTo(map);
+
+  });
+
 </script>
-
 </body>
 </html>
