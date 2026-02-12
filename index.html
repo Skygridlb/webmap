@@ -116,25 +116,10 @@ html,body{height:100%;margin:0;}
   background: rgba(255,255,255,0.0);
 }
 
-.streetLabel{
-  font-family: var(--arabic-font);
-  font-weight: 900;
-  color: #111;
-  background: rgba(255,255,255,0.88);
-  border: 1px solid rgba(0,0,0,0.22);
-  border-radius: 10px;
-  padding: 2px 8px;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
-  white-space: nowrap;
-  text-shadow: 0 0 3px rgba(255,255,255,0.8);
-}
-
-/* Mobile boost */
-@media (max-width: 600px){
-  .streetLabel{font-size:16px;}
-}
-@media (min-width: 601px){
-  .streetLabel{font-size:14px;}
+/* (Street labels will be SVG textPath, style comes from attributes in JS)
+   We still keep a class to ensure click-through. */
+.streetTextPath{
+  pointer-events:none !important;
 }
 </style>
 </head>
@@ -183,9 +168,11 @@ html,body{height:100%;margin:0;}
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- ✅ Needed for parallel labels along lines -->
+<script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <script>
-/* ================= SETTINGS (kept same spirit) ================= */
+/* ================= SETTINGS (unchanged) ================= */
 const MIN_Z = 16;
 const MAX_Z = 23;
 const GRAVE_LABEL_Z = 22;
@@ -236,7 +223,6 @@ function googleNavLinkFromLayer(layer){
 /* Compute approximate on-screen pixel length of a line */
 function linePixelLength(layer){
   const latlngs = layer.getLatLngs();
-  // handle MultiLineString (array of arrays)
   const parts = Array.isArray(latlngs[0]) ? latlngs : [latlngs];
 
   let maxLen = 0;
@@ -251,6 +237,47 @@ function linePixelLength(layer){
     if(len > maxLen) maxLen = len;
   });
   return maxLen;
+}
+
+/* Apply / clear street label (parallel to line) */
+function applyStreetLabel(layer){
+  const isMobile = window.matchMedia("(max-width:600px)").matches;
+  const fontSize = isMobile ? '20px' : '16px';     // readable on phone + laptop
+  const strokeW  = isMobile ? '6' : '5';
+
+  layer.setText(layer._streetName || '', {
+    repeat: false,
+    center: true,
+    offset: -8, // visually "above" the line
+    attributes: {
+      'class': 'streetTextPath',
+      'font-family': '"Noto Naskh Arabic","Amiri","Arial","Tahoma",sans-serif',
+      'font-weight': '900',
+      'font-size': fontSize,
+
+      /* readable style (similar idea to grave readability) */
+      fill: '#111',
+      stroke: 'rgba(255,255,255,0.95)',
+      'stroke-width': strokeW,
+      'paint-order': 'stroke',
+      'stroke-linejoin': 'round'
+    }
+  });
+
+  // ensure SVG text doesn't steal clicks
+  setTimeout(() => {
+    try{
+      const el = layer.getElement();
+      if(el){
+        const texts = el.querySelectorAll('text, tspan, textPath');
+        texts.forEach(t => t.style.pointerEvents = 'none');
+      }
+    }catch(e){}
+  }, 0);
+}
+
+function clearStreetLabel(layer){
+  layer.setText('');
 }
 
 /* ================= LABEL REFRESH ================= */
@@ -272,46 +299,30 @@ function refreshLabels(){
     }
   });
 
-  // Streets labels (tooltip above center) with anti-overlap filter
+  // Streets labels (parallel) + anti-overlap filter
   const showStreets = z >= STREET_LABEL_Z;
   const isMobile = window.matchMedia("(max-width:600px)").matches;
-  const minPx = isMobile ? 220 : 170; // only label long lines (reduces overlap)
+  const minPx = isMobile ? 240 : 180; // only label long lines -> fewer overlaps
 
   streetsLayers.forEach(l=>{
     if(!showStreets){
-      if(l.getTooltip()) l.unbindTooltip();
+      clearStreetLabel(l);
       return;
     }
 
     const name = (l._streetName || '').trim();
     if(!name){
-      if(l.getTooltip()) l.unbindTooltip();
+      clearStreetLabel(l);
       return;
     }
 
-    // hide labels for very short segments
     const pxLen = linePixelLength(l);
     if(pxLen < minPx){
-      if(l.getTooltip()) l.unbindTooltip();
+      clearStreetLabel(l);
       return;
     }
 
-    // show label above center
-    if(!l.getTooltip()){
-      // Use bounds center (works for most lines)
-      const center = l.getBounds().getCenter();
-      l.bindTooltip(escapeHtml(name), {
-        permanent:true,
-        direction:'top',
-        offset:[0,-10],
-        className:'streetLabel',
-        opacity:0.98
-      }).openTooltip(center);
-    } else {
-      // keep anchored at center
-      const center = l.getBounds().getCenter();
-      l.openTooltip(center);
-    }
+    applyStreetLabel(l);
   });
 }
 
@@ -335,19 +346,22 @@ fetch('data/Graves.geojson')
       }
     }).addTo(map);
 
-    // Fat invisible click layer
+    // Fat invisible click layer (popup + navigation + photo)
     L.geoJSON(data,{
       style:{color:'#000',weight:GRAVE_CLICK_WEIGHT,opacity:0,fillOpacity:0},
       onEachFeature:(f,l)=>{
         const p=f.properties||{};
         const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
         const owner=(p.Owner||p.Name||'').toString();
+
         const nav=googleNavLinkFromLayer(l);
+        const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
 
         l.bindPopup(`
           <b>Grave ID:</b> ${escapeHtml(id)}<br>
           ${owner ? `<b>Owner:</b> ${escapeHtml(owner)}<br>` : ``}
           <br>
+          <a href="${photoUrl}" target="_blank" rel="noopener">📷 Open photo</a><br>
           <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
         `);
 
