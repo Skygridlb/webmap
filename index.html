@@ -4,467 +4,173 @@
 <meta charset="utf-8" />
 <title>Zgharta Cemetery Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 html,body{height:100%;margin:0;}
 #map{height:100%;width:100%;}
 
-/* ================= TOP UI ================= */
-#topUI{
-  position:fixed;
-  top:env(safe-area-inset-top,0px);
-  left:0; right:0;
-  z-index:2000;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  padding:10px;
-  pointer-events:none;
-}
-#searchBox{
-  background:#fff;
-  padding:8px;
-  border-radius:14px;
-  box-shadow:0 2px 10px rgba(0,0,0,.15);
-  display:flex;
-  gap:6px;
-  align-items:center;
-  font-family:Arial,sans-serif;
-  pointer-events:auto;
-}
-#searchInput{
-  flex:1;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,.2);
-  font-size:14px;
-  outline:none;
-}
-.searchBtn{
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,.2);
-  background:#f2f2f2;
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-}
-.searchBtn:active{background:#ddd;}
-
-/* Partner logo top-right */
-#partnerLogo{
-  align-self:flex-end;
-  background:#fff;
-  padding:6px 10px;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.18);
-  pointer-events:auto;
-}
-#partnerLogo img{height:40px;}
-
-/* Brand card bottom */
-#brandBox{
-  position:fixed;
-  bottom:env(safe-area-inset-bottom,10px);
-  left:10px; right:10px;
-  z-index:2000;
-  background:#fff;
-  padding:10px 14px;
-  border-radius:18px;
-  box-shadow:0 4px 16px rgba(0,0,0,.22);
-  display:flex;
-  gap:14px;
-  align-items:center;
-  font-family:Arial,sans-serif;
-  pointer-events:auto;
-}
-.brandLogoCol{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.poweredBy{font-size:10px;font-weight:800;}
-.brandLogoCol img{height:48px;}
-.brandText{line-height:1.2;}
-.brandName{font-size:14px;font-weight:800;}
-.brandRole{font-size:11px;font-weight:600;}
-.brandContact{font-size:11px;margin-top:4px;}
-.socialRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-.socialRow a{
-  font-size:10.5px;
-  padding:4px 10px;
-  border-radius:12px;
-  background:rgba(0,0,0,.08);
-  text-decoration:none;
-  color:#000;
-  font-weight:700;
-}
-.brandTagline{font-size:10px;opacity:.75;margin-top:4px;}
-
-/* ================= CLICK / TAP FIXES ================= */
 .leaflet-tooltip{pointer-events:none !important;}
 .leaflet-interactive{cursor:pointer;}
 
-/* ================= LABEL STYLES ================= */
 :root{
   --arabic-font: "Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif;
 }
 
-/* Graves tooltip labels */
 .graveLabel{
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   font-weight: 900;
   font-size: 12px;
   text-shadow: 0 0 3px #fff, 0 0 7px #fff;
-  pointer-events:none;
 }
 
-/* Street labels (textPath) – big + Arabic readable */
 .streetText{
   font-family: var(--arabic-font) !important;
   font-weight: 900 !important;
   pointer-events:none !important;
-  filter: drop-shadow(0 0 2px rgba(0,0,0,0.75)) drop-shadow(0 0 6px rgba(0,0,0,0.35));
 }
 </style>
 </head>
 
 <body>
-
-<div id="topUI">
-  <div id="searchBox">
-    <input id="searchInput" placeholder="Search by Grave_ID">
-    <button id="searchBtn" class="searchBtn">Search</button>
-    <button id="clearBtn" class="searchBtn">Clear</button>
-  </div>
-
-  <div id="partnerLogo">
-    <img src="logo/Maronite.png" alt="Maronite">
-  </div>
-</div>
-
-<div id="brandBox">
-  <div class="brandLogoCol">
-    <div class="poweredBy">Powered by</div>
-    <img src="logo/skygridlb.png" alt="Skygridlb">
-  </div>
-
-  <div class="brandText">
-    <div class="brandName">FADI KASS HANNA</div>
-    <div class="brandRole">OWNER | GENERAL MANAGER</div>
-    <div class="brandRole">GEO SPATIAL ENGINEER</div>
-
-    <div class="brandContact">
-      +961 71 709 417<br>
-      fadi@skygridlb.com
-    </div>
-
-    <div class="socialRow">
-      <a href="https://facebook.com/skygridlb" target="_blank" rel="noopener">Facebook</a>
-      <a href="https://instagram.com/skygridlb" target="_blank" rel="noopener">Instagram</a>
-      <a href="https://linkedin.com/company/skygridlb" target="_blank" rel="noopener">LinkedIn</a>
-    </div>
-
-    <div class="brandTagline">YOUR SPACE • OUR DATA</div>
-  </div>
-</div>
-
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <script>
-/* ================= SETTINGS ================= */
+
 const MIN_Z = 16;
 const MAX_Z = 23;
-
-// labels by zoom
-const STREET_LABEL_Z = 18;
-const GRAVE_LABEL_Z  = 22;
-
-// tiles
-const TILES_MAX_NATIVE_Z = 23; // you said folder 23 exists
-
-// street line style
-const STREET_LINE_COLOR = 'rgb(85,255,0)';
-const STREET_WEIGHT = 3.5;
-
-// street label style (bigger on mobile)
-const isMobile = window.matchMedia("(max-width: 600px)").matches;
-const STREET_LABEL_COLOR  = '#ffd400';
-const STREET_LABEL_SIZE   = isMobile ? '22px' : '20px';
-const STREET_LABEL_WEIGHT = '900';
-const STREET_LABEL_STROKE = 'rgba(0,0,0,0.85)';
-const STREET_LABEL_STROKE_W = isMobile ? '6' : '5';
-
-// click/tap hit-size for graves
+const GRAVE_LABEL_Z = 22;
+const STREET_LABEL_Z = 19;
 const GRAVE_CLICK_WEIGHT = 18;
 
-/* ================= MAP ================= */
-var map = L.map('map', {
-  minZoom: MIN_Z,
-  maxZoom: MAX_Z,
+var map = L.map('map',{
+  minZoom:MIN_Z,
+  maxZoom:MAX_Z,
+  tap:true,
+  tapTolerance:25
+}).setView([34.38106,35.90435],18);
 
-  tap: true,
-  tapTolerance: 25,
-
-  zoomSnap: 1,
-  zoomDelta: 1
-}).setView([34.38106, 35.90435], 18);
-
-/* ================= RASTER ================= */
-L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
-  minZoom: MIN_Z,
-  maxZoom: MAX_Z,
-  minNativeZoom: MIN_Z,
-  maxNativeZoom: TILES_MAX_NATIVE_Z,
-  tms: false
+L.tileLayer('tiles/{z}/{x}/{y}.jpg',{
+  minZoom:MIN_Z,
+  maxZoom:MAX_Z
 }).addTo(map);
 
-/* ================= REGISTRIES ================= */
-var graveVisibleLayers = [];   // for grave labels
-var gravesIndex = [];          // {idLower, clickLayer}
-var streetTextLayers = [];     // line layers for textPath
-
-/* ================= HELPERS ================= */
-function escapeHtml(s){
-  return (s ?? "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function googleNavLinkFromLayer(layer){
-  let c;
-  if (layer.getBounds) c = layer.getBounds().getCenter();
-  else if (layer.getLatLng) c = layer.getLatLng();
-  else return "";
-  const lat = c.lat.toFixed(6);
-  const lng = c.lng.toFixed(6);
-  return "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng;
-}
+var graveVisibleLayers=[];
+var gravesIndex=[];
+var streetTextLayers=[];
 
 /* ================= LABEL REFRESH ================= */
-function applyStreetText(layer){
-  // Apply/refresh textPath label on a street line
-  layer.setText(layer._streetName || '', {
-    center: true,
-    repeat: false,
-    offset: 0,
-    attributes: {
-      'class': 'streetText',
-      fill: STREET_LABEL_COLOR,
-      'font-size': STREET_LABEL_SIZE,
-      'font-weight': STREET_LABEL_WEIGHT,
-      'font-family': '"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
-      stroke: STREET_LABEL_STROKE,
-      'stroke-width': STREET_LABEL_STROKE_W,
-      'paint-order': 'stroke',
-      'stroke-linejoin': 'round'
-    }
-  });
-
-  // ensure SVG text never steals clicks/taps
-  setTimeout(() => {
-    try{
-      const el = layer.getElement();
-      if(el){
-        const texts = el.querySelectorAll('text, tspan');
-        texts.forEach(t => t.style.pointerEvents = 'none');
-      }
-    }catch(e){}
-  }, 0);
-}
-
 function refreshLabels(){
   const z = map.getZoom();
 
-  // Graves labels
-  const showGraves = z >= GRAVE_LABEL_Z;
-  graveVisibleLayers.forEach(l => {
-    if(showGraves){
+  // Graves
+  graveVisibleLayers.forEach(l=>{
+    if(z>=GRAVE_LABEL_Z){
       if(!l.getTooltip()){
-        l.bindTooltip(l._labelText || '', {
-          permanent: true,
-          direction: 'center',
-          className: 'graveLabel',
-          opacity: 0.95
+        l.bindTooltip(l._labelText,{
+          permanent:true,
+          direction:'center',
+          className:'graveLabel'
         });
       }
-    } else {
+    }else{
       if(l.getTooltip()) l.unbindTooltip();
     }
   });
 
-  // Streets labels
- const showStreets = map.getZoom() >= 19;
+  // Streets
+  streetTextLayers.forEach(l=>{
+    if(z>=STREET_LABEL_Z){
+      l.setText(l._streetName,{
+        center:true,
+        offset:-6,
+        attributes:{
+          class:'streetText',
+          fill:'#ffd400',
+          'font-size':window.matchMedia("(max-width:600px)").matches?'22px':'20px',
+          'font-weight':'900',
+          'font-family':'"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
+          stroke:'rgba(0,0,0,0.85)',
+          'stroke-width':'5',
+          'paint-order':'stroke',
+          'stroke-linejoin':'round'
+        }
+      });
+    }else{
+      l.setText('');
+    }
+  });
+}
 
-streetTextLayers.forEach(l => {
-  if(showStreets){
-
-    l.setText(l._streetName || '', {
-      center: true,              // center of line
-      repeat: false,
-      offset: -6,                // ABOVE the line
-      attributes: {
-        'class': 'streetText',
-        fill: '#ffd400',
-        'font-size': window.matchMedia("(max-width:600px)").matches ? '22px' : '20px',
-        'font-weight': '900',
-        'font-family': '"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
-        stroke: 'rgba(0,0,0,0.85)',
-        'stroke-width': '5',
-        'paint-order': 'stroke',
-        'stroke-linejoin': 'round'
-      }
-    });
-
-    l._streetTextApplied = true;
-
-  } else {
-
-    l.setText('');
-    l._streetTextApplied = false;
-  }
-});
-📌 Important
-Make sure this line exists somewhere:
-
-map.on('zoomend', refreshLabels);
-🎯 Result
-Street labels appear only from zoom 19
-
-Positioned above center of line
-
-Large & readable on mobile
-
-Proper Arabic font
-
-Strong black outline for clarity
-
-Popup works on street click
-
-If you want next level:
-
-We can:
-
-Make labels auto-rotate correctly
-
-Hide overlapping labels
-
-Or make labels scale dynamically with zoom
-
-Tell me 👌
-
-
-
-map.on('zoomend', refreshLabels);
-// Some browsers need a move/paint cycle before textPath attaches correctly:
-map.on('moveend', refreshLabels);
+map.on('zoomend',refreshLabels);
 
 /* ================= LOAD GRAVES ================= */
 fetch('data/Graves.geojson')
-  .then(r => {
-    if(!r.ok) throw new Error('Graves GeoJSON HTTP ' + r.status);
-    return r.json();
-  })
-  .then(data => {
+.then(r=>r.json())
+.then(data=>{
 
-    // Visible layer (nice style) — interactive OFF
-    L.geoJSON(data, {
-      interactive: false,
-      style: { color:'#ff0000', weight:2, fillOpacity:0.15 },
-      onEachFeature: function(feature, layer){
-        const p = feature.properties || {};
-        const id = (p.Grave_ID ?? p.ID ?? p.Id ?? p.id ?? '').toString();
-        layer._labelText = id;
-        graveVisibleLayers.push(layer);
-      }
-    }).addTo(map);
+  // Visible layer
+  L.geoJSON(data,{
+    interactive:false,
+    style:{color:'#ff0000',weight:2,fillOpacity:0.15},
+    onEachFeature:(f,l)=>{
+      const id=(f.properties.Grave_ID||f.properties.ID||'').toString();
+      l._labelText=id;
+      graveVisibleLayers.push(l);
+    }
+  }).addTo(map);
 
-    // Invisible FAT click layer — interactive ON
-    L.geoJSON(data, {
-      style: { color:'#000', weight: GRAVE_CLICK_WEIGHT, opacity:0, fillOpacity:0 },
-      onEachFeature: function(feature, layer){
-        const p = feature.properties || {};
-        const id = (p.Grave_ID ?? p.ID ?? p.Id ?? p.id ?? '').toString();
+  // FAT invisible click layer
+  L.geoJSON(data,{
+    style:{color:'#000',weight:GRAVE_CLICK_WEIGHT,opacity:0,fillOpacity:0},
+    onEachFeature:(f,l)=>{
+      const id=(f.properties.Grave_ID||f.properties.ID||'').toString();
+      const c=l.getBounds().getCenter();
+      const nav=`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
+      l.bindPopup(`
+        <b>Grave ID:</b> ${id}<br><br>
+        <a href="${nav}" target="_blank">🧭 Navigate (Google Maps)</a>
+      `);
+      gravesIndex.push({idLower:id.toLowerCase(),clickLayer:l});
+    }
+  }).addTo(map);
 
-        const owner = (p.Owner ?? p.Name ?? '').toString();
-        const photoUrl = 'photos/' + id + '.jpg';
-        const nav = googleNavLinkFromLayer(layer);
-
-        layer.bindPopup(`
-          <b>Grave ID:</b> ${escapeHtml(id)}<br>
-          ${owner ? `<b>Owner:</b> ${escapeHtml(owner)}<br>` : ``}
-          <br>
-          <a href="${photoUrl}" target="_blank" rel="noopener">📷 Open photo</a><br>
-          <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
-        `);
-
-        gravesIndex.push({ idLower: id.toLowerCase(), clickLayer: layer });
-      }
-    }).addTo(map);
-
-    refreshLabels();
-  })
-  .catch(err => console.log('Graves load error:', err));
+  refreshLabels();
+});
 
 /* ================= LOAD STREETS ================= */
 fetch('data/Streets.geojson')
-  .then(r => {
-    if(!r.ok) throw new Error('Streets GeoJSON HTTP ' + r.status);
-    return r.json();
-  })
-  .then(data => {
+.then(r=>r.json())
+.then(data=>{
 
-    L.geoJSON(data, {
-      style: {
-        color: 'rgb(85,255,0)',
-        weight: 3.5,
-        opacity: 0.9
-      },
-      onEachFeature: function(feature, layer){
+  L.geoJSON(data,{
+    style:{color:'rgb(85,255,0)',weight:3.5},
+    onEachFeature:(f,l)=>{
+      const name=(f.properties.StreetName||f.properties.Name||'').toString();
+      l._streetName=name;
 
-        const p = feature.properties || {};
-        const streetName = (p.StreetName ?? p.Name ?? p.NAME ?? '').toString();
+      l.bindPopup(`<b>Street:</b> ${name}`);
+      streetTextLayers.push(l);
+    }
+  }).addTo(map);
 
-        layer._streetName = streetName;
-
-        // Street popup
-        layer.bindPopup(`
-          <b>Street:</b> ${streetName}
-        `);
-
-        streetTextLayers.push(layer);
-      }
-    }).addTo(map);
-
-    refreshLabels();
-  })
-  .catch(err => console.log('Streets load error:', err));
+  refreshLabels();
+});
 
 /* ================= SEARCH ================= */
 function doSearch(){
-  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const q=document.getElementById('searchInput')?.value?.trim().toLowerCase();
   if(!q) return;
-
-  const hit = gravesIndex.find(x => x.idLower === q) || gravesIndex.find(x => x.idLower.startsWith(q));
-  if(hit && hit.clickLayer){
-    if(hit.clickLayer.getBounds){
-      map.fitBounds(hit.clickLayer.getBounds(), { maxZoom: MAX_Z });
-    }
+  const hit=gravesIndex.find(x=>x.idLower===q||x.idLower.startsWith(q));
+  if(hit){
+    map.fitBounds(hit.clickLayer.getBounds(),{maxZoom:MAX_Z});
     hit.clickLayer.openPopup();
   }
 }
-document.getElementById('searchBtn').onclick = doSearch;
-document.getElementById('clearBtn').onclick = function(){
-  document.getElementById('searchInput').value = "";
-};
-document.getElementById('searchInput').addEventListener('keydown', function(e){
-  if(e.key === "Enter") doSearch();
-});
-</script>
 
+</script>
 </body>
 </html>
