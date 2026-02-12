@@ -314,7 +314,8 @@ function scheduleStreetRotate(layer){
 
   const ang = lineAngleDeg(layer);
   inner.style.transformOrigin = 'center center';
-  inner.style.transform = `rotate(${ang}deg)`;
+ const d = 12; // pixels away from the street
+inner.style.transform = `rotate(${ang}deg) translateY(-${d}px)`;
 
   // also keep click-through
   inner.style.pointerEvents = 'none';
@@ -367,7 +368,7 @@ function refreshLabels(){
       l.bindTooltip(escapeHtml(name), {
         permanent:true,
         direction:'center',
-        offset:[0,-12],
+        offset:[0,0],
         className:'streetLabel',
         opacity:0.98
       });
