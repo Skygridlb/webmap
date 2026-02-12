@@ -100,9 +100,7 @@ html,body{height:100%;margin:0;}
 .brandTagline{font-size:10px;opacity:.75;margin-top:4px;}
 
 /* ================= CLICK / TAP FIXES ================= */
-/* ✅ Make all Leaflet tooltips click-through */
 .leaflet-tooltip{pointer-events:none !important;}
-/* Better cursor */
 .leaflet-interactive{cursor:pointer;}
 
 /* ================= LABEL STYLES ================= */
@@ -119,13 +117,12 @@ html,body{height:100%;margin:0;}
   pointer-events:none;
 }
 
-/* Street textPath label: readable Arabic on desktop + mobile */
+/* Street labels (textPath) – big + Arabic readable */
 .streetText{
   font-family: var(--arabic-font) !important;
   font-weight: 900 !important;
   pointer-events:none !important;
-  /* extra glow */
-  filter: drop-shadow(0 0 2px rgba(0,0,0,0.7)) drop-shadow(0 0 6px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.75)) drop-shadow(0 0 6px rgba(0,0,0,0.35));
 }
 </style>
 </head>
@@ -176,7 +173,7 @@ html,body{height:100%;margin:0;}
 <script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <script>
-/* ================= SETTINGS (kept unchanged) ================= */
+/* ================= SETTINGS ================= */
 const MIN_Z = 16;
 const MAX_Z = 23;
 
@@ -185,21 +182,21 @@ const STREET_LABEL_Z = 18;
 const GRAVE_LABEL_Z  = 22;
 
 // tiles
-const TILES_MAX_NATIVE_Z = 23; // you said you have folder 23
+const TILES_MAX_NATIVE_Z = 23; // you said folder 23 exists
 
 // street line style
 const STREET_LINE_COLOR = 'rgb(85,255,0)';
 const STREET_WEIGHT = 3.5;
 
-// ✅ Make street labels bigger + readable (mobile/desktop)
+// street label style (bigger on mobile)
 const isMobile = window.matchMedia("(max-width: 600px)").matches;
 const STREET_LABEL_COLOR  = '#ffd400';
-const STREET_LABEL_SIZE   = isMobile ? '22px' : '20px';  // bigger on mobile
+const STREET_LABEL_SIZE   = isMobile ? '22px' : '20px';
 const STREET_LABEL_WEIGHT = '900';
 const STREET_LABEL_STROKE = 'rgba(0,0,0,0.85)';
 const STREET_LABEL_STROKE_W = isMobile ? '6' : '5';
 
-// ✅ Click/tap hit-size for graves (bigger = easier)
+// click/tap hit-size for graves
 const GRAVE_CLICK_WEIGHT = 18;
 
 /* ================= MAP ================= */
@@ -207,7 +204,6 @@ var map = L.map('map', {
   minZoom: MIN_Z,
   maxZoom: MAX_Z,
 
-  // ✅ Better mobile tapping
   tap: true,
   tapTolerance: 25,
 
@@ -215,19 +211,19 @@ var map = L.map('map', {
   zoomDelta: 1
 }).setView([34.38106, 35.90435], 18);
 
-/* ================= RASTER ONLY (kept unchanged) ================= */
+/* ================= RASTER ================= */
 L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
   maxZoom: MAX_Z,
   minNativeZoom: MIN_Z,
   maxNativeZoom: TILES_MAX_NATIVE_Z,
-  tms: false // if tiles don't show, set true
+  tms: false
 }).addTo(map);
 
 /* ================= REGISTRIES ================= */
-var graveVisibleLayers = [];   // visible grave polygons (for labels)
-var gravesIndex = [];          // {idLower, visibleLayer, clickLayer}
-var streetTextLayers = [];     // for textPath labels
+var graveVisibleLayers = [];   // for grave labels
+var gravesIndex = [];          // {idLower, clickLayer}
+var streetTextLayers = [];     // line layers for textPath
 
 /* ================= HELPERS ================= */
 function escapeHtml(s){
@@ -239,22 +235,52 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-// Center of polygon -> google maps directions destination
 function googleNavLinkFromLayer(layer){
   let c;
   if (layer.getBounds) c = layer.getBounds().getCenter();
   else if (layer.getLatLng) c = layer.getLatLng();
   else return "";
-
   const lat = c.lat.toFixed(6);
   const lng = c.lng.toFixed(6);
   return "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng;
 }
 
 /* ================= LABEL REFRESH ================= */
+function applyStreetText(layer){
+  // Apply/refresh textPath label on a street line
+  layer.setText(layer._streetName || '', {
+    center: true,
+    repeat: false,
+    offset: 0,
+    attributes: {
+      'class': 'streetText',
+      fill: STREET_LABEL_COLOR,
+      'font-size': STREET_LABEL_SIZE,
+      'font-weight': STREET_LABEL_WEIGHT,
+      'font-family': '"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
+      stroke: STREET_LABEL_STROKE,
+      'stroke-width': STREET_LABEL_STROKE_W,
+      'paint-order': 'stroke',
+      'stroke-linejoin': 'round'
+    }
+  });
+
+  // ensure SVG text never steals clicks/taps
+  setTimeout(() => {
+    try{
+      const el = layer.getElement();
+      if(el){
+        const texts = el.querySelectorAll('text, tspan');
+        texts.forEach(t => t.style.pointerEvents = 'none');
+      }
+    }catch(e){}
+  }, 0);
+}
+
 function refreshLabels(){
   const z = map.getZoom();
 
+  // Graves labels
   const showGraves = z >= GRAVE_LABEL_Z;
   graveVisibleLayers.forEach(l => {
     if(showGraves){
@@ -271,41 +297,13 @@ function refreshLabels(){
     }
   });
 
+  // Streets labels
   const showStreets = z >= STREET_LABEL_Z;
   streetTextLayers.forEach(l => {
     if(showStreets){
-      if(!l._streetTextApplied){
-        l.setText(l._streetName || '', {
-          center: true,
-          repeat: false,
-          offset: 0,
-          attributes: {
-            'class': 'streetText',
-            fill: STREET_LABEL_COLOR,
-            'font-size': STREET_LABEL_SIZE,
-            'font-weight': STREET_LABEL_WEIGHT,
-            'font-family': '"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
-
-            /* ✅ strong outline for readability */
-            stroke: STREET_LABEL_STROKE,
-            'stroke-width': STREET_LABEL_STROKE_W,
-            'paint-order': 'stroke',
-            'stroke-linejoin': 'round'
-          }
-        });
-        l._streetTextApplied = true;
-
-        // ✅ Ensure SVG text never steals clicks/taps
-        setTimeout(() => {
-          try{
-            const el = l.getElement();
-            if(el){
-              const texts = el.querySelectorAll('text, tspan');
-              texts.forEach(t => t.style.pointerEvents = 'none');
-            }
-          }catch(e){}
-        }, 0);
-      }
+      // Always re-apply to avoid “no label” bugs after load/zoom
+      applyStreetText(l);
+      l._streetTextApplied = true;
     } else {
       if(l._streetTextApplied){
         l.setText('');
@@ -314,7 +312,10 @@ function refreshLabels(){
     }
   });
 }
+
 map.on('zoomend', refreshLabels);
+// Some browsers need a move/paint cycle before textPath attaches correctly:
+map.on('moveend', refreshLabels);
 
 /* ================= LOAD GRAVES ================= */
 fetch('data/Graves.geojson')
@@ -324,30 +325,27 @@ fetch('data/Graves.geojson')
   })
   .then(data => {
 
-    // 1) Visible layer (nice style) — interactive OFF
-    const gravesVisible = L.geoJSON(data, {
+    // Visible layer (nice style) — interactive OFF
+    L.geoJSON(data, {
       interactive: false,
       style: { color:'#ff0000', weight:2, fillOpacity:0.15 },
       onEachFeature: function(feature, layer){
         const p = feature.properties || {};
         const id = (p.Grave_ID ?? p.ID ?? p.Id ?? p.id ?? '').toString();
-
         layer._labelText = id;
         graveVisibleLayers.push(layer);
       }
     }).addTo(map);
 
-    // 2) Invisible FAT click layer — interactive ON (easy popups)
-    const gravesClick = L.geoJSON(data, {
+    // Invisible FAT click layer — interactive ON
+    L.geoJSON(data, {
       style: { color:'#000', weight: GRAVE_CLICK_WEIGHT, opacity:0, fillOpacity:0 },
       onEachFeature: function(feature, layer){
         const p = feature.properties || {};
         const id = (p.Grave_ID ?? p.ID ?? p.Id ?? p.id ?? '').toString();
 
-        // Optional fields you may add later
         const owner = (p.Owner ?? p.Name ?? '').toString();
         const photoUrl = 'photos/' + id + '.jpg';
-
         const nav = googleNavLinkFromLayer(layer);
 
         layer.bindPopup(`
@@ -358,11 +356,7 @@ fetch('data/Graves.geojson')
           <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
         `);
 
-        // keep search index
-        gravesIndex.push({
-          idLower: id.toLowerCase(),
-          clickLayer: layer
-        });
+        gravesIndex.push({ idLower: id.toLowerCase(), clickLayer: layer });
       }
     }).addTo(map);
 
@@ -381,11 +375,23 @@ fetch('data/Streets.geojson')
       style: { color: STREET_LINE_COLOR, weight: STREET_WEIGHT, opacity: 0.9 },
       onEachFeature: function(feature, layer){
         const p = feature.properties || {};
-        // choose your street name field here (Arabic or English)
-        const name = (p.Name_AR ?? p.Name ?? p.NAME ?? p.street ?? '').toString();
+
+        // ✅ Choose your street name field (Arabic first)
+        const name = (p.Name_AR ?? p.Street_AR ?? p.Name ?? p.NAME ?? p.street ?? '').toString();
 
         layer._streetName = name;
+
+        // ✅ Popup for streets
+        layer.bindPopup(`
+          <b>Street:</b> ${escapeHtml(name || "—")}
+        `);
+
         streetTextLayers.push(layer);
+
+        // Apply immediately (after the layer is added to map)
+        setTimeout(() => {
+          if(map.getZoom() >= STREET_LABEL_Z) applyStreetText(layer);
+        }, 0);
       }
     }).addTo(map);
 
@@ -400,14 +406,12 @@ function doSearch(){
 
   const hit = gravesIndex.find(x => x.idLower === q) || gravesIndex.find(x => x.idLower.startsWith(q));
   if(hit && hit.clickLayer){
-    // zoom to its bounds and open popup
     if(hit.clickLayer.getBounds){
       map.fitBounds(hit.clickLayer.getBounds(), { maxZoom: MAX_Z });
     }
     hit.clickLayer.openPopup();
   }
 }
-
 document.getElementById('searchBtn').onclick = doSearch;
 document.getElementById('clearBtn').onclick = function(){
   document.getElementById('searchInput').value = "";
