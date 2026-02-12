@@ -284,6 +284,30 @@ function lineAngleDeg(layer){
   return ang;
 }
 
+/* keep rotation applied even while Leaflet updates tooltip position */
+function scheduleStreetRotate(layer){
+  const tip = layer.getTooltip && layer.getTooltip();
+  const el = tip && tip.getElement && tip.getElement();
+  if(!el) return;
+
+  // IMPORTANT: Leaflet uses translate3d on the tooltip container.
+  // We only rotate the INNER content so Leaflet positioning never breaks.
+  let inner = el.querySelector('.leaflet-tooltip-content');
+  if(!inner){
+    // Leaflet tooltip usually has text directly; wrap it once
+    const txt = el.innerHTML;
+    el.innerHTML = `<div class="leaflet-tooltip-content">${txt}</div>`;
+    inner = el.querySelector('.leaflet-tooltip-content');
+  }
+
+  const ang = lineAngleDeg(layer);
+  inner.style.transformOrigin = 'center center';
+  inner.style.transform = `rotate(${ang}deg)`;
+
+  // also keep click-through
+  inner.style.pointerEvents = 'none';
+}
+
 /* ================= LABEL REFRESH ================= */
 function refreshLabels(){
   const z = map.getZoom();
@@ -337,16 +361,14 @@ function refreshLabels(){
       });
     }
 
-    // position & rotate
-    const center = l.getBounds().getCenter();
-    l.openTooltip(center);
+// position tooltip at center
+const center = l.getBounds().getCenter();
+l.openTooltip(center);
 
-    const tip = l.getTooltip();
-    const el = tip && tip.getElement ? tip.getElement() : null;
-    if(el){
-      const ang = lineAngleDeg(l);
-      el.style.transform = `translate(-50%, -50%) rotate(${ang}deg)`;
-    }
+// Rotate AFTER Leaflet places it (and keep it)
+requestAnimationFrame(()=>scheduleStreetRotate(l));
+setTimeout(()=>scheduleStreetRotate(l), 0);
+setTimeout(()=>scheduleStreetRotate(l), 50);
   });
 }
 
