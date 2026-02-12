@@ -411,17 +411,20 @@ fetch('data/Graves.geojson')
         const p=f.properties||{};
         const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
         const owner=(p.Owner||p.Name||'').toString();
+	const streetName = (p.StreetName || '').toString();
 
         const nav=googleNavLinkFromLayer(l);
         const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
 
-        l.bindPopup(`
-          <b>Grave ID:</b> ${escapeHtml(id)}<br>
-          ${owner ? `<b>Owner:</b> ${escapeHtml(owner)}<br>` : ``}
-          <br>
-          <a href="${photoUrl}" target="_blank" rel="noopener">📷 Open photo</a><br>
-          <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
-        `);
+  l.bindPopup(`
+  <b>Grave ID:</b> ${escapeHtml(id)}<br>
+  ${owner ? `<b>Owner:</b> ${escapeHtml(owner)}<br>` : ``}
+  ${streetName ? `<b>Street:</b> ${escapeHtml(streetName)}<br>` : ``}
+  <br>
+  <a href="${photoUrl}" target="_blank" rel="noopener">📷 Open photo</a><br>
+  <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
+`);
+
 
         gravesIndex.push({idLower:id.toLowerCase(), clickLayer:l});
       }
