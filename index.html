@@ -298,20 +298,66 @@ function refreshLabels(){
   });
 
   // Streets labels
-  const showStreets = z >= STREET_LABEL_Z;
-  streetTextLayers.forEach(l => {
-    if(showStreets){
-      // Always re-apply to avoid “no label” bugs after load/zoom
-      applyStreetText(l);
-      l._streetTextApplied = true;
-    } else {
-      if(l._streetTextApplied){
-        l.setText('');
-        l._streetTextApplied = false;
+ const showStreets = map.getZoom() >= 19;
+
+streetTextLayers.forEach(l => {
+  if(showStreets){
+
+    l.setText(l._streetName || '', {
+      center: true,              // center of line
+      repeat: false,
+      offset: -6,                // ABOVE the line
+      attributes: {
+        'class': 'streetText',
+        fill: '#ffd400',
+        'font-size': window.matchMedia("(max-width:600px)").matches ? '22px' : '20px',
+        'font-weight': '900',
+        'font-family': '"Noto Naskh Arabic","Noto Sans Arabic","Amiri","Arial","Tahoma",sans-serif',
+        stroke: 'rgba(0,0,0,0.85)',
+        'stroke-width': '5',
+        'paint-order': 'stroke',
+        'stroke-linejoin': 'round'
       }
-    }
-  });
-}
+    });
+
+    l._streetTextApplied = true;
+
+  } else {
+
+    l.setText('');
+    l._streetTextApplied = false;
+  }
+});
+📌 Important
+Make sure this line exists somewhere:
+
+map.on('zoomend', refreshLabels);
+🎯 Result
+Street labels appear only from zoom 19
+
+Positioned above center of line
+
+Large & readable on mobile
+
+Proper Arabic font
+
+Strong black outline for clarity
+
+Popup works on street click
+
+If you want next level:
+
+We can:
+
+Make labels auto-rotate correctly
+
+Hide overlapping labels
+
+Or make labels scale dynamically with zoom
+
+Tell me 👌
+
+
 
 map.on('zoomend', refreshLabels);
 // Some browsers need a move/paint cycle before textPath attaches correctly:
@@ -371,27 +417,26 @@ fetch('data/Streets.geojson')
     return r.json();
   })
   .then(data => {
+
     L.geoJSON(data, {
-      style: { color: STREET_LINE_COLOR, weight: STREET_WEIGHT, opacity: 0.9 },
+      style: {
+        color: 'rgb(85,255,0)',
+        weight: 3.5,
+        opacity: 0.9
+      },
       onEachFeature: function(feature, layer){
+
         const p = feature.properties || {};
+        const streetName = (p.StreetName ?? p.Name ?? p.NAME ?? '').toString();
 
-        // ✅ Choose your street name field (Arabic first)
-        const name = (p.Name_AR ?? p.Street_AR ?? p.Name ?? p.NAME ?? p.street ?? '').toString();
+        layer._streetName = streetName;
 
-        layer._streetName = name;
-
-        // ✅ Popup for streets
+        // Street popup
         layer.bindPopup(`
-          <b>Street:</b> ${escapeHtml(name || "—")}
+          <b>Street:</b> ${streetName}
         `);
 
         streetTextLayers.push(layer);
-
-        // Apply immediately (after the layer is added to map)
-        setTimeout(() => {
-          if(map.getZoom() >= STREET_LABEL_Z) applyStreetText(layer);
-        }, 0);
       }
     }).addTo(map);
 
