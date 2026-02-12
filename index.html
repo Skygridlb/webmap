@@ -105,8 +105,23 @@ html,body{ height:100%; margin:0; }
   font-size: 11px;
   text-shadow: 0 0 2px #fff, 0 0 6px #fff;
   pointer-events: none;
-  direction: rtl;            /* good for Arabic */
-  unicode-bidi: plaintext;   /* keeps Arabic ordering correct */
+  direction: rtl;
+  unicode-bidi: plaintext;
+}
+
+/* Small status bubble (helps debugging on phones) */
+#status{
+  position:fixed;
+  top:70px;
+  left:10px;
+  z-index:3000;
+  background:#fff;
+  padding:8px 10px;
+  border-radius:10px;
+  box-shadow:0 2px 10px rgba(0,0,0,.2);
+  font:12px Arial;
+  max-width: 70vw;
+  opacity: 0.95;
 }
 </style>
 </head>
@@ -130,7 +145,7 @@ html,body{ height:100%; margin:0; }
 <div id="brandBox">
   <div class="brandLogoCol">
     <div class="poweredBy">Powered by</div>
-    <img src="logo/skygridlb.png">
+    <img src="logo/skygridlb.png" alt="Skygridlb">
   </div>
 
   <div class="brandText">
@@ -144,15 +159,16 @@ html,body{ height:100%; margin:0; }
     </div>
 
     <div class="socialRow">
-      <a href="https://facebook.com/skygridlb" target="_blank">Facebook</a>
-      <a href="https://instagram.com/skygridlb" target="_blank">Instagram</a>
-      <a href="https://linkedin.com/company/skygridlb" target="_blank">LinkedIn</a>
+      <a href="https://facebook.com/skygridlb" target="_blank" rel="noopener">Facebook</a>
+      <a href="https://instagram.com/skygridlb" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://linkedin.com/company/skygridlb" target="_blank" rel="noopener">LinkedIn</a>
     </div>
 
     <div class="brandTagline">YOUR SPACE • OUR DATA</div>
   </div>
 </div>
 
+<div id="status">Loading…</div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -160,7 +176,11 @@ html,body{ height:100%; margin:0; }
 /** ZOOM RULES **/
 const MIN_Z = 16;
 const MAX_Z = 23;
-const LABEL_Z = 18; // show labels from this zoom and above (change if you want)
+const LABEL_Z = 18;     // show labels from this zoom and above
+const TILES_MAX_NATIVE_Z = 21; // change ONLY if you truly have tiles/22 and tiles/23 folders
+
+const statusEl = document.getElementById("status");
+function setStatus(msg){ statusEl.innerHTML = msg; }
 
 /** MAP **/
 var map = L.map('map', {
@@ -171,22 +191,17 @@ var map = L.map('map', {
 
 L.control.zoom({position:'bottomright'}).addTo(map);
 
-/** BASEMAP (OSM) **/
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+/** ORTHO / RASTER TILES (NO OSM) **/
+L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
-  maxZoom: MAX_Z,
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
-
-/** ORTHO / RASTER TILES (JPEG) **/
-L.tileLayer('tiles/{z}/{x}/{y}.jpeg', {
-  minZoom: MIN_Z,
-  maxZoom: MAX_Z,
-  tms: false
+  maxZoom: MAX_Z,           // allow zooming to 23
+  minNativeZoom: MIN_Z,
+  maxNativeZoom: TILES_MAX_NATIVE_Z, // prevents blank tiles above your real zoom
+  tms: false                // if tiles still don't show, change to true
 }).addTo(map);
 
 /** LABEL MANAGEMENT **/
-var labelLayers = [];   // all layers that can show a tooltip label
+var labelLayers = [];
 function refreshLabels(){
   var show = map.getZoom() >= LABEL_Z;
   labelLayers.forEach(l => {
@@ -204,61 +219,67 @@ function refreshLabels(){
     }
   });
 }
+map.on('}_zoomend', refreshLabels); // <-- will be corrected below
+map.off('}_zoomend');              // safety
+
 map.on('zoomend', refreshLabels);
 
 /** SEARCH INDEX (Graves) **/
-var gravesIndex = [];   // {idLower, layer}
+var gravesIndex = [];
 
-/** GRAVES (GeoJSON) **/
-fetch('data/Graves.geojson')
-  .then(r => r.json())
-  .then(data => {
-    L.geoJSON(data, {
-      style: { color:'#00ff00', weight:2, fillOpacity:0.2 },
-      onEachFeature: (f, l) => {
-        const gid = (f.properties?.Grave_ID ?? '').toString().trim();
+/** Helper to load GeoJSON with visible status **/
+async function loadGeoJSON(url, layerName, buildLayerFn){
+  try{
+    setStatus(`Loading ${layerName}…`);
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) throw new Error(`${layerName} HTTP ${r.status}`);
+    const data = await r.json();
+    const layer = buildLayerFn(data);
+    setStatus(`${layerName} loaded ✅ (${data.features?.length || 0} features)`);
+    return layer;
+  }catch(e){
+    console.error(e);
+    setStatus(`❌ ${layerName} failed: ${e.message}`);
+    return null;
+  }
+}
 
-        // Label
-        l._labelText = gid;
-        labelLayers.push(l);
+/** GRAVES **/
+loadGeoJSON('data/Graves.geojson', 'Graves', (data) => {
+  return L.geoJSON(data, {
+    style: { color:'#00ff00', weight:2, fillOpacity:0.2 },
+    onEachFeature: (f, l) => {
+      const gid = (f.properties?.Grave_ID ?? '').toString().trim();
 
-        // Popup (you can add more fields if you want)
-        let popupHTML = `<b>Grave_ID:</b> ${gid}`;
-        // Optional: if you have a photo naming rule by Grave_ID, uncomment:
-        // const photo = `photos/${gid}.jpg`;
-        // popupHTML += `<br><br><a href="${photo}" target="_blank">📷 Open photo</a>`;
-        l.bindPopup(popupHTML);
+      l._labelText = gid;
+      labelLayers.push(l);
 
-        // Search index
-        if(gid) gravesIndex.push({ idLower: gid.toLowerCase(), layer: l });
-      }
-    }).addTo(map);
+      l.bindPopup(`<b>Grave_ID:</b> ${gid}`);
 
-    refreshLabels();
-  })
-  .catch(err => console.error('Failed loading Graves.geojson', err));
+      if(gid) gravesIndex.push({ idLower: gid.toLowerCase(), layer: l });
+    }
+  }).addTo(map);
+}).then(() => refreshLabels());
 
-/** STREETS (GeoJSON) **/
-fetch('data/Streets.geojson')
-  .then(r => r.json())
-  .then(data => {
-    L.geoJSON(data, {
-      style: { color:'#ff9900', weight:3, opacity:0.9 },
-      onEachFeature: (f, l) => {
-        const sname = (f.properties?.StreetName ?? '').toString().trim();
+/** STREETS
+ * IMPORTANT: Streets must be EPSG:4326 (lat/long). If your file is UTM meters, it will NOT show.
+ * Re-export in QGIS to EPSG:4326 then push to GitHub.
+ **/
+loadGeoJSON('data/Streets.geojson', 'Streets', (data) => {
+  const streetsLayer = L.geoJSON(data, {
+    style: { color:'#ff0000', weight:6, opacity:1 }, // strong for testing
+    onEachFeature: (f, l) => {
+      const sname = (f.properties?.StreetName ?? '').toString().trim();
+      l._labelText = sname;
+      labelLayers.push(l);
+      l.bindPopup(`<b>StreetName:</b> ${sname}`);
+    }
+  }).addTo(map);
 
-        // Label (Arabic supported by CSS direction + bidi)
-        l._labelText = sname;
-        labelLayers.push(l);
-
-        // Popup
-        l.bindPopup(`<b>StreetName:</b> ${sname}`);
-      }
-    }).addTo(map);
-
-    refreshLabels();
-  })
-  .catch(err => console.error('Failed loading Streets.geojson', err));
+  // keep streets above graves
+  streetsLayer.bringToFront();
+  return streetsLayer;
+}).then(() => refreshLabels());
 
 /** SEARCH (by Grave_ID) **/
 function doSearch(){
@@ -271,7 +292,6 @@ function doSearch(){
     hit.layer.openPopup();
   }
 }
-
 document.getElementById('searchBtn').onclick = doSearch;
 document.getElementById('clearBtn').onclick = () => { document.getElementById('searchInput').value=""; };
 document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==="Enter") doSearch(); });
