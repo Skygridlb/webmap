@@ -6,70 +6,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.css"/>
 
 <style>
 html,body{ height:100%; margin:0; }
 #map{ height:100%; width:100%; }
 
-/* Label style */
+/* Grave tooltip labels */
 .vecLabel{
   font-family: Arial, sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 11px;
-  text-shadow: 0 0 3px #fff, 0 0 6px #fff;
+  text-shadow: 0 0 3px #fff, 0 0 7px #fff;
   pointer-events: none;
+}
+
+/* SVG text along streets (Leaflet.TextPath) */
+.streetText{
+  text-shadow: 0 0 3px #fff, 0 0 8px #fff;
 }
 </style>
 </head>
 
 <body>
-
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <script>
-
 /* ================= SETTINGS ================= */
-
 const MIN_Z = 16;
 const MAX_Z = 23;
-const GRAVE_LABEL_Z = 20;   // graves start at zoom 20
-const TILES_MAX_NATIVE_Z = 21; // change if you have tiles 22/23
+
+// graves labels start at zoom 21
+const GRAVE_LABEL_Z = 21;
+
+// set this to your highest available tiles zoom folder (ex: 21)
+const TILES_MAX_NATIVE_Z = 21;
+
+// streets style
+const STREET_COLOR = '#39d353'; // lighter green
+const STREET_WEIGHT = 4.5;      // thicker
+
+// streets label style
+const STREET_LABEL_SIZE = '16px';
 
 /* ================= MAP ================= */
-
 var map = L.map('map', {
   minZoom: MIN_Z,
   maxZoom: MAX_Z
 }).setView([34.38106, 35.90435], 18);
 
-/* ================= RASTER ONLY ================= */
-
+/* ================= RASTER ONLY (NO OSM) ================= */
 L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
   maxZoom: MAX_Z,
   minNativeZoom: MIN_Z,
   maxNativeZoom: TILES_MAX_NATIVE_Z,
-  tms: false
+  tms: false   // if your tiles still don't show, change to true
 }).addTo(map);
 
-/* ================= LABEL MANAGEMENT ================= */
-
+/* ================= GRAVE LABEL MANAGEMENT ================= */
 var graveLayers = [];
 
 function refreshGraveLabels(){
-  let show = map.getZoom() >= GRAVE_LABEL_Z;
-
+  const show = map.getZoom() >= GRAVE_LABEL_Z;
   graveLayers.forEach(l => {
     if(show){
       if(!l.getTooltip()){
         l.bindTooltip(l._labelText || '', {
           permanent: true,
           direction: 'center',
-          className: 'vecLabel'
+          className: 'vecLabel',
+          opacity: 0.95
         });
       }
     } else {
@@ -77,81 +86,72 @@ function refreshGraveLabels(){
     }
   });
 }
-
 map.on('zoomend', refreshGraveLabels);
 
 /* ================= GRAVES ================= */
-
 fetch('data/Graves.geojson')
   .then(r => r.json())
   .then(data => {
-
     L.geoJSON(data, {
-
-      /* Red outline only */
-      style: function(feature){
-        return {
-          color: '#ff0000',
-          weight: 1.5,
-          fill: false
-        };
-      },
-
-      onEachFeature: function(feature, layer){
-
-        const gid = feature.properties?.Grave_ID || '';
+      // red outline only, no fill
+      style: () => ({
+        color: '#ff0000',
+        weight: 1.5,
+        fill: false
+      }),
+      onEachFeature: (feature, layer) => {
+        const gid = (feature.properties?.Grave_ID ?? '').toString().trim();
 
         layer._labelText = gid;
         graveLayers.push(layer);
 
         layer.bindPopup(`<b>Grave_ID:</b> ${gid}`);
-
       }
-
     }).addTo(map);
 
     refreshGraveLabels();
-  });
-
+  })
+  .catch(err => console.error('Failed loading Graves.geojson', err));
 
 /* ================= STREETS ================= */
-/* IMPORTANT: Must be EPSG:4326 (lat/long) */
-
+/* IMPORTANT: Streets.geojson must be EPSG:4326 (lat/long). If it's UTM meters, it will not display. */
 fetch('data/Streets.geojson')
   .then(r => r.json())
   .then(data => {
+    const streetsLayer = L.geoJSON(data, {
+      // lighter green, thicker
+      style: () => ({
+        color: STREET_COLOR,
+        weight: STREET_WEIGHT,
+        opacity: 0.95
+      }),
+      onEachFeature: (feature, layer) => {
+        const sname = (feature.properties?.StreetName ?? '').toString().trim();
 
-    L.geoJSON(data, {
+        // popup on streets
+        layer.bindPopup(`<b>StreetName:</b> ${sname}`);
 
-      /* Green streets */
-      style: function(feature){
-        return {
-          color: '#008000',
-          weight: 2.5
-        };
-      },
-
-      onEachFeature: function(feature, layer){
-
-        const name = feature.properties?.StreetName || '';
-
-        /* Parallel label centered on line */
-        layer.setText(name, {
+        // label parallel to the line, centered
+        // repeat: false so it doesn't repeat many times on short segments
+        // orientation: 'auto' to follow line direction
+        layer.setText(sname, {
           center: true,
+          repeat: false,
           offset: 0,
           attributes: {
-            fill: '#008000',
-            fontSize: '12px',
-            fontWeight: 'bold'
+            'class': 'streetText',
+            fill: STREET_COLOR,
+            'font-size': STREET_LABEL_SIZE,
+            'font-weight': '900'
           }
         });
-
       }
-
     }).addTo(map);
 
-  });
-
+    // keep streets above graves
+    streetsLayer.bringToFront();
+  })
+  .catch(err => console.error('Failed loading Streets.geojson', err));
 </script>
 </body>
 </html>
