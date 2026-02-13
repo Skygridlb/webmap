@@ -216,6 +216,12 @@ var map = L.map('map', {
   zoomDelta: 1
 }).setView([34.38106, 35.90435], 18);
 
+// ✅ Create dedicated pane for clickable graves (must be above overlays)
+map.createPane('gravesClickPane');
+map.getPane('gravesClickPane').style.zIndex = 700;
+map.getPane('gravesClickPane').style.pointerEvents = 'auto';
+
+
 /* ================= RASTER (unchanged path) ================= */
 L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
@@ -394,42 +400,45 @@ fetch('data/Graves.geojson')
   .then(data => {
 
     // ✅ Graves style: red weight 1.5, NO fill
-    L.geoJSON(data,{
-      interactive:true,
-      style:{color:'#ff0000',weight:1.5,fillOpacity:0},
-      onEachFeature:(f,l)=>{
-        const p=f.properties||{};
-        const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
-        l._labelText=id;
-        graveVisibleLayers.push(l);
-      }
-    }).addTo(map);
+L.geoJSON(data,{
+  interactive:false,
+  style:{color:'#ff0000',weight:1.5,fillOpacity:0},
+  onEachFeature:(f,l)=>{
+    const p=f.properties||{};
+    const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
+    l._labelText=id;
+    graveVisibleLayers.push(l);
+  }
+}).addTo(map);
 
     // Fat invisible click layer (popup + navigation + photo)
-    L.geoJSON(data,{
-      style:{color:'#000',weight:GRAVE_CLICK_WEIGHT,opacity:0,fillOpacity:0},
-      onEachFeature:(f,l)=>{
-        const p=f.properties||{};
-        const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
-        const owner=(p.Owner||p.Name||'').toString();
-	const streetName = (p.StreetName || '').toString();
+L.geoJSON(data,{
+  pane:'gravesClickPane',
+  style:{color:'#000',weight:GRAVE_CLICK_WEIGHT,opacity:0.01,fillOpacity:0.01},
+  onEachFeature:(f,l)=>{
+    const p=f.properties||{};
+    const id=(p.Grave_ID||p.ID||p.Id||p.id||'').toString();
+    const owner=(p.Owner||p.Name||'').toString();
+    const streetName=(p.StreetName||'').toString();
 
-        const nav=googleNavLinkFromLayer(l);
-        const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
+    const nav=googleNavLinkFromLayer(l);
+    const photoUrl='photos/'+encodeURIComponent(id)+'.jpg';
 
   l.bindPopup(`
   <b>Grave ID:</b> ${escapeHtml(id)}<br>
   ${owner ? `<b>Owner:</b> ${escapeHtml(owner)}<br>` : ``}
   ${streetName ? `<b>Street:</b> ${escapeHtml(streetName)}<br>` : ``}
   <br>
-  <a href="${photoUrl}" target="_blank" rel="noopener">📷 Open photo</a><br>
-  <a href="${nav}" target="_blank" rel="noopener">🧭 Navigate (Google Maps)</a>
+  <a href="${photoUrl}" target="_blank">📷 Open photo</a><br>
+  <a href="${nav}" target="_blank">🧭 Navigate (Google Maps)</a>
 `);
 
+l.on('click', (e) => l.openPopup(e.latlng));
+l.on('touchstart', (e) => l.openPopup(e.latlng));
 
-        gravesIndex.push({idLower:id.toLowerCase(), clickLayer:l});
-      }
-    }).addTo(map);
+gravesIndex.push({idLower:id.toLowerCase(), clickLayer:l});
+  }
+}).addTo(map);
 
     refreshLabels();
   });
