@@ -252,7 +252,7 @@ function googleNavLinkFromLayer(layer){
 }
 
 /* ================= LOAD GRAVES (SINGLE CLICKABLE LAYER) ================= */
-fetch('data/Graves.geojson')
+fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
   .then(r => {
     if (!r.ok) throw new Error("Grave GeoJSON not found");
     return r.json();
@@ -316,10 +316,10 @@ fetch('data/Graves.geojson')
 
     refreshLabels();
   })
-  .catch(err => {
-    console.error(err);
-    alert("Error: Could not load graves. Check if data/Graves.geojson exists.");
-  });
+ .catch(err => {
+  console.error(err);
+  alert("GRAVES LOAD ERROR:\n" + err);
+});
 
 /* ================= LOAD STREETS ================= */
 fetch('data/Streets.geojson')
