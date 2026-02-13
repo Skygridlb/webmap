@@ -395,7 +395,7 @@ fetch('data/Graves.geojson')
 
     // ✅ Graves style: red weight 1.5, NO fill
     L.geoJSON(data,{
-      interactive:false,
+      interactive:true,
       style:{color:'#ff0000',weight:1.5,fillOpacity:0},
       onEachFeature:(f,l)=>{
         const p=f.properties||{};
