@@ -1,19 +1,272 @@
-/* ================= LOAD GRAVES (SINGLE LAYER FIX) ================= */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Zgharta Cemetery Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html,body{height:100%;margin:0;}
+#map{height:100%;width:100%;}
+
+/* ✅ Click-through labels */
+.leaflet-tooltip{pointer-events:none !important;}
+.leaflet-interactive{cursor:pointer;}
+
+:root{
+  --arabic-font: "Noto Naskh Arabic","Amiri","Arial","Tahoma",sans-serif;
+}
+
+/* ================= TOP UI ================= */
+#topUI{
+  position:fixed;
+  top:env(safe-area-inset-top,0px);
+  left:0; right:0;
+  z-index:2000;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:10px;
+  pointer-events:none;
+}
+#searchBox{
+  background:#fff;
+  padding:8px;
+  border-radius:14px;
+  box-shadow:0 2px 10px rgba(0,0,0,.15);
+  display:flex;
+  gap:6px;
+  align-items:center;
+  font-family:Arial,sans-serif;
+  pointer-events:auto;
+}
+#searchInput{
+  flex:1;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.2);
+  font-size:14px;
+  outline:none;
+}
+.searchBtn{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.2);
+  background:#f2f2f2;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+.searchBtn:active{background:#ddd;}
+
+#partnerLogo{
+  align-self:flex-end;
+  background:#fff;
+  padding:6px 10px;
+  border-radius:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
+  pointer-events:auto;
+}
+#partnerLogo img{height:40px;}
+
+/* ================= BRAND CARD ================= */
+#brandBox{
+  position:fixed;
+  bottom:env(safe-area-inset-bottom,10px);
+  left:10px; right:10px;
+  z-index:2000;
+  background:#fff;
+  padding:10px 14px;
+  border-radius:18px;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);
+  display:flex;
+  gap:14px;
+  align-items:center;
+  font-family:Arial,sans-serif;
+  pointer-events:auto;
+}
+.brandLogoCol{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.poweredBy{font-size:10px;font-weight:800;}
+.brandLogoCol img{height:48px;}
+.brandText{line-height:1.2;}
+.brandName{font-size:14px;font-weight:800;}
+.brandRole{font-size:11px;font-weight:600;}
+.brandContact{font-size:11px;margin-top:4px;}
+.socialRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.socialRow a{
+  font-size:10.5px;
+  padding:4px 10px;
+  border-radius:12px;
+  background:rgba(0,0,0,.08);
+  text-decoration:none;
+  color:#000;
+  font-weight:700;
+}
+.brandTagline{font-size:10px;opacity:.75;margin-top:4px;}
+
+/* ================= LABEL STYLES ================= */
+.graveLabel{
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  font-size: 12px;
+  color:#111;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.22);
+  border-radius: 8px;
+  padding: 2px 8px;
+  text-shadow: 0 0 3px #fff, 0 0 7px #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+}
+
+.streetLabel{
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  white-space: nowrap;
+  font-family: var(--arabic-font);
+  font-weight: 900;
+  color: #111;
+}
+
+.streetLabel .leaflet-tooltip-content{
+  display: inline-block;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(0,0,0,0.22);
+  border-radius: 10px;
+  padding: 2px 8px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+  text-shadow: 0 0 3px rgba(255,255,255,0.8);
+  transform-origin: center center;
+}
+
+@media (max-width: 600px){ .streetLabel{font-size:16px;} }
+@media (min-width: 601px){ .streetLabel{font-size:14px;} }
+</style>
+</head>
+
+<body>
+
+<div id="topUI">
+  <div id="searchBox">
+    <input id="searchInput" placeholder="Search by Grave ID or Owner" list="graveSuggestions">
+    <datalist id="graveSuggestions"></datalist>
+    <button id="searchBtn" class="searchBtn">Search</button>
+    <button id="clearBtn" class="searchBtn">Clear</button>
+  </div>
+
+  <div id="partnerLogo">
+    <img src="logo/Maronite.png" alt="Maronite">
+  </div>
+</div>
+
+<div id="brandBox">
+  <div class="brandLogoCol">
+    <div class="poweredBy">Powered by</div>
+    <img src="logo/skygridlb.png" alt="Skygridlb">
+  </div>
+
+  <div class="brandText">
+    <div class="brandName">FADI BOULOS KASS HANNA</div>
+    <div class="brandRole">OWNER | GENERAL MANAGER</div>
+    <div class="brandRole">GEOSPATIAL ENGINEER</div>
+    <div class="brandContact">
+      +961 71 709 417<br>
+      fadi@skygridlb.com
+    </div>
+
+    <div class="socialRow">
+      <a href="https://facebook.com/skygridlb" target="_blank" rel="noopener">Facebook</a>
+      <a href="https://instagram.com/skygridlb" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://linkedin.com/company/skygridlb" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+
+    <div class="brandTagline">YOUR SPACE • OUR DATA</div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ================= SETTINGS ================= */
+const MIN_Z = 16;
+const MAX_Z = 23;
+const GRAVE_LABEL_Z = 22;
+const STREET_LABEL_Z = 19;
+
+/* ================= MAP INIT ================= */
+var map = L.map('map', {
+  minZoom: MIN_Z,
+  maxZoom: MAX_Z,
+  tap: true,
+  tapTolerance: 25,
+  zoomSnap: 1,
+  zoomDelta: 1
+}).setView([34.38106, 35.90435], 18);
+
+/* ================= RASTER TILE LAYER ================= */
+L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
+  minZoom: MIN_Z,
+  maxZoom: MAX_Z
+}).addTo(map);
+
+/* ================= REGISTRIES ================= */
+var graveVisibleLayers = []; 
+var gravesIndex = [];        
+var streetsLayers = [];
+
+/* ================= HELPERS ================= */
+function escapeHtml(s){
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+const suggestionSet = new Set();
+const suggestionListEl = document.getElementById('graveSuggestions');
+function addSuggestion(val){
+  const v = (val ?? '').toString().trim();
+  if(!v) return;
+  const key = v.toLowerCase();
+  if(suggestionSet.has(key)) return;
+  suggestionSet.add(key);
+  const opt = document.createElement('option');
+  opt.value = v;
+  suggestionListEl.appendChild(opt);
+}
+
+function googleNavLinkFromLayer(layer){
+  let c;
+  if (layer.getBounds) c = layer.getBounds().getCenter();
+  else if (layer.getLatLng) c = layer.getLatLng();
+  else return "";
+  const lat = c.lat.toFixed(6);
+  const lng = c.lng.toFixed(6);
+  return "http://googleusercontent.com/maps.google.com/maps?q=" + lat + "," + lng;
+}
+
+/* ================= LOAD GRAVES (SINGLE CLICKABLE LAYER) ================= */
 fetch('data/Graves.geojson')
   .then(r => {
     if (!r.ok) throw new Error("Grave GeoJSON not found");
     return r.json();
   })
   .then(data => {
-    // SINGLE LAYER: Handles both the Red Color AND the Clicks
+    // ONE Robust Layer for both display and interaction
     L.geoJSON(data, {
-      interactive: true, // ✅ THIS MAKES IT CLICKABLE
+      interactive: true, // ✅ MUST be true for clicks
       style: { 
-        color: '#ff0000',     // Red outline
+        color: '#ff0000',      // Red Outline
         weight: 1.5, 
-        fill: true,           // ✅ MUST be true to click the inside
-        fillColor: '#ffffff', // White fill
-        fillOpacity: 0.01     // ✅ 1% opacity (invisible to eye, but creates a "solid" surface for the mouse)
+        fill: true,            // ✅ Fill MUST be true to catch clicks inside
+        fillColor: '#ffffff', 
+        fillOpacity: 0.01      // ✅ 1% opacity (invisible to eye, visible to mouse)
       },
       onEachFeature: (f, l) => {
         const p = f.properties || {};
@@ -36,33 +289,187 @@ fetch('data/Graves.geojson')
           </div>
         `);
 
-        // 2. Add Hover Effect (Turns Yellow when mouse is over it)
+        // 2. Hover Highlight (Yellow)
         l.on('mouseover', function() { 
-            this.setStyle({ color: '#ffeb3b', weight: 3, fillOpacity: 0.2 }); 
-            this.bringToFront();
+          this.setStyle({ color: '#ffeb3b', weight: 3, fillOpacity: 0.2 }); 
+          this.bringToFront(); 
         });
         l.on('mouseout',  function() { 
-            this.setStyle({ color: '#ff0000', weight: 1.5, fillOpacity: 0.01 }); 
+          this.setStyle({ color: '#ff0000', weight: 1.5, fillOpacity: 0.01 }); 
         });
 
         // 3. Register for Labels & Search
         l._labelText = id;
         graveVisibleLayers.push(l);
         
-        // Add to search index
         gravesIndex.push({
           idLower: id.toLowerCase(),
           ownerLower: owner.toLowerCase(),
           clickLayer: l
         });
-        
-        // Add suggestions
+
+        // 4. Add Search Suggestions
         if(id) addSuggestion(id);
         if(owner) addSuggestion(owner);
       }
     }).addTo(map);
 
-    // Refresh labels ONLY after data is loaded
-    refreshLabels(); 
+    refreshLabels();
   })
-  .catch(err => console.error("Error loading graves:", err));
+  .catch(err => {
+    console.error(err);
+    alert("Error: Could not load graves. Check if data/Graves.geojson exists.");
+  });
+
+/* ================= LOAD STREETS ================= */
+fetch('data/Streets.geojson')
+  .then(r => r.json())
+  .then(data => {
+    L.geoJSON(data,{
+      style:{color:'rgb(85,255,0)',weight:3.5,opacity:0.9},
+      onEachFeature:(f,l)=>{
+        const p=f.properties||{};
+        const name=(p.StreetName || p.Name_AR || p.Name || p.NAME || '').toString();
+        l._streetName = name;
+        l.bindPopup(`<b>Street:</b> ${escapeHtml(name || '—')}`);
+        streetsLayers.push(l);
+      }
+    }).addTo(map);
+    refreshLabels();
+  });
+
+/* ================= LABEL REFRESH LOGIC ================= */
+function linePixelLength(layer){
+  const latlngs = layer.getLatLngs();
+  const parts = Array.isArray(latlngs[0]) ? latlngs : [latlngs];
+  let maxLen = 0;
+  parts.forEach(part => {
+    let len = 0;
+    for(let i=1;i<part.length;i++){
+      const a = map.latLngToLayerPoint(part[i-1]);
+      const b = map.latLngToLayerPoint(part[i]);
+      const dx = b.x - a.x, dy = b.y - a.y;
+      len += Math.sqrt(dx*dx + dy*dy);
+    }
+    if(len > maxLen) maxLen = len;
+  });
+  return maxLen;
+}
+
+function lineAngleDeg(layer){
+  const latlngs = layer.getLatLngs();
+  const parts = Array.isArray(latlngs[0]) ? latlngs : [latlngs];
+  let best = {len:0, a:null, b:null};
+  parts.forEach(part=>{
+    for(let i=1;i<part.length;i++){
+      const A = map.latLngToLayerPoint(part[i-1]);
+      const B = map.latLngToLayerPoint(part[i]);
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if(len > best.len) best = {len, a:A, b:B};
+    }
+  });
+  if(!best.a || !best.b) return 0;
+  const dx = best.b.x - best.a.x;
+  const dy = best.b.y - best.a.y;
+  let ang = Math.atan2(dy, dx) * 180/Math.PI;
+  if(ang > 90) ang -= 180;
+  if(ang < -90) ang += 180;
+  return ang;
+}
+
+function scheduleStreetRotate(layer){
+  const tip = layer.getTooltip && layer.getTooltip();
+  const el = tip && tip.getElement && tip.getElement();
+  if(!el) return;
+  let inner = el.querySelector('.leaflet-tooltip-content');
+  if(!inner){
+    const txt = el.innerHTML;
+    el.innerHTML = `<div class="leaflet-tooltip-content">${txt}</div>`;
+    inner = el.querySelector('.leaflet-tooltip-content');
+  }
+  const ang = lineAngleDeg(layer);
+  inner.style.transformOrigin = 'center center';
+  inner.style.transform = `rotate(${ang}deg) translateY(-12px)`;
+  inner.style.pointerEvents = 'none';
+}
+
+function refreshLabels(){
+  const z = map.getZoom();
+
+  // 1. Grave Labels
+  graveVisibleLayers.forEach(l=>{
+    if(z >= GRAVE_LABEL_Z){
+      if(!l.getTooltip()){
+        l.bindTooltip(l._labelText || '', {
+          permanent:true,
+          direction:'center',
+          className:'graveLabel'
+        });
+      }
+    }else{
+      if(l.getTooltip()) l.unbindTooltip();
+    }
+  });
+
+  // 2. Street Labels
+  const showStreets = z >= STREET_LABEL_Z;
+  const isMobile = window.matchMedia("(max-width:600px)").matches;
+  const minPx = isMobile ? 260 : 200;
+
+  streetsLayers.forEach(l=>{
+    if(!showStreets){
+      if(l.getTooltip()) l.unbindTooltip();
+      return;
+    }
+    const name = (l._streetName || '').trim();
+    if(!name){ if(l.getTooltip()) l.unbindTooltip(); return; }
+    
+    const pxLen = linePixelLength(l);
+    if(pxLen < minPx){ if(l.getTooltip()) l.unbindTooltip(); return; }
+
+    if(!l.getTooltip()){
+      l.bindTooltip(escapeHtml(name), {
+        permanent:true,
+        direction:'center',
+        offset:[0,0],
+        className:'streetLabel',
+        opacity:0.98
+      });
+    }
+    const center = l.getBounds().getCenter();
+    l.openTooltip(center);
+    requestAnimationFrame(()=>scheduleStreetRotate(l));
+  });
+}
+
+map.on('zoomend', refreshLabels);
+map.on('moveend', refreshLabels);
+
+/* ================= SEARCH ================= */
+function doSearch(){
+  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  if(!q) return;
+
+  const hit =
+    gravesIndex.find(x => x.idLower === q) ||
+    gravesIndex.find(x => x.ownerLower === q) ||
+    gravesIndex.find(x => x.idLower.startsWith(q)) ||
+    gravesIndex.find(x => x.ownerLower.startsWith(q));
+
+  if(hit && hit.clickLayer){
+    map.fitBounds(hit.clickLayer.getBounds(), {maxZoom: MAX_Z});
+    hit.clickLayer.openPopup();
+    // Highlight effect
+    hit.clickLayer.setStyle({color:'yellow', weight:4, fillOpacity:0.4});
+    setTimeout(()=>{ hit.clickLayer.setStyle({color:'#ff0000', weight:1.5, fillOpacity:0.01}); }, 3000);
+  }
+}
+
+document.getElementById('searchBtn').onclick = doSearch;
+document.getElementById('clearBtn').onclick = ()=>{ document.getElementById('searchInput').value=''; };
+document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+
+</script>
+</body>
+</html>
