@@ -242,17 +242,33 @@ function addSuggestion(val){
 }
 
 function googleNavLinkFromLayer(layer){
-  let c;
-  if (layer.getBounds) c = layer.getBounds().getCenter();
-  else if (layer.getLatLng) c = layer.getLatLng();
-  else return "";
-  const lat = c.lat.toFixed(6);
-  const lng = c.lng.toFixed(6);
-  return "http://googleusercontent.com/maps.google.com/maps?q=" + lat + "," + lng;
+  try{
+    let c = null;
+
+    if(layer && typeof layer.getBounds === "function"){
+      const b = layer.getBounds();
+      if(b && typeof b.getCenter === "function") c = b.getCenter();
+    }
+
+    if(!c && layer && typeof layer.getLatLng === "function"){
+      c = layer.getLatLng();
+    }
+
+    if(!c || typeof c.lat !== "number" || typeof c.lng !== "number" ||
+       !isFinite(c.lat) || !isFinite(c.lng)){
+      return "";
+    }
+
+    return `https://www.google.com/maps?q=${c.lat.toFixed(6)},${c.lng.toFixed(6)}`;
+  }catch(e){
+    console.error("Nav link error:", e);
+    return "";
+  }
 }
 
+
 /* ================= LOAD GRAVES (SINGLE CLICKABLE LAYER) ================= */
-fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
+fetch('data/Graves.geojson')
   .then(r => {
     if (!r.ok) throw new Error("Grave GeoJSON not found");
     return r.json();
@@ -261,6 +277,14 @@ fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
     // ONE Robust Layer for both display and interaction
     L.geoJSON(data, {
       interactive: true, // ✅ MUST be true for clicks
+      filter: (f) => {
+        try{
+          const g = f && f.geometry;
+          const c = g && g.coordinates;
+          // drop features with empty geometry (prevents crash)
+          return Array.isArray(c) && c.length > 0;
+        }catch(e){ return false; }
+      },
       style: { 
         color: '#ff0000',      // Red Outline
         weight: 1.5, 
@@ -271,7 +295,7 @@ fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
       onEachFeature: (f, l) => {
         const p = f.properties || {};
         const id = (p.Grave_ID || p.ID || p.id || '').toString();
-        const owner = (p.Owner || p.Name || '').toString();
+        const owner = (p.Owner || p.Owner_Name || p.OwnerName || p.Name || p.NAME || '').toString();
         const streetName = (p.StreetName || '').toString();
 
         // 1. Setup Popup
@@ -285,7 +309,7 @@ fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
             ${streetName ? `<b>Street:</b> ${escapeHtml(streetName)}<br>` : ``}
             <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;">
             <a href="${photoUrl}" target="_blank" style="text-decoration:none; font-weight:bold; color:#0078A8;">📷 Open Photo</a><br>
-            <a href="${nav}" target="_blank" style="text-decoration:none; font-weight:bold; color:#0078A8; margin-top:4px; display:inline-block;">🧭 Navigate (Google Maps)</a>
+            ${nav ? '<a href="' + nav + '" target="_blank" style="text-decoration:none; font-weight:bold; color:#0078A8; margin-top:4px; display:inline-block;">🧭 Navigate (Google Maps)</a>' : ''}
           </div>
         `);
 
@@ -316,10 +340,10 @@ fetch('./data/Graves.geojson?v=' + Date.now(), { cache: 'no-store' })
 
     refreshLabels();
   })
- .catch(err => {
-  console.error(err);
-  alert("GRAVES LOAD ERROR:\n" + err);
-});
+  .catch(err => {
+    console.error(err);
+    alert("Error: Could not load graves. Check if data/Graves.geojson exists.");
+  });
 
 /* ================= LOAD STREETS ================= */
 fetch('data/Streets.geojson')
