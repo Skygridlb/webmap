@@ -159,7 +159,8 @@ html,body{height:100%;margin:0;}
 
 <div id="topUI">
   <div id="searchBox">
-    <input id="searchInput" placeholder="Search by Grave_ID">
+    <input id="searchInput" placeholder="Search by Grave ID or Owner" list="graveSuggestions">
+    <datalist id="graveSuggestions"></datalist>
     <button id="searchBtn" class="searchBtn">Search</button>
     <button id="clearBtn" class="searchBtn">Clear</button>
   </div>
@@ -241,6 +242,21 @@ function escapeHtml(s){
     .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
+}
+
+// ================= AUTOCOMPLETE =================
+const suggestionSet = new Set();
+const suggestionListEl = document.getElementById('graveSuggestions');
+
+function addSuggestion(val){
+  const v = (val ?? '').toString().trim();
+  if(!v) return;
+  const key = v.toLowerCase();
+  if(suggestionSet.has(key)) return;
+  suggestionSet.add(key);
+  const opt = document.createElement('option');
+  opt.value = v;
+  suggestionListEl.appendChild(opt);
 }
 
 function googleNavLinkFromLayer(layer){
@@ -436,7 +452,11 @@ L.geoJSON(data,{
 l.on('click', (e) => l.openPopup(e.latlng));
 l.on('touchstart', (e) => l.openPopup(e.latlng));
 
-gravesIndex.push({idLower:id.toLowerCase(), clickLayer:l});
+gravesIndex.push({id:id, owner:owner, idLower:id.toLowerCase(), ownerLower:owner.toLowerCase(), clickLayer:l});
+
+    // autocomplete suggestions
+    addSuggestion(id);
+    if(owner) addSuggestion(owner);
   }
 }).addTo(map);
 
@@ -465,12 +485,16 @@ fetch('data/Streets.geojson')
 
 /* ================= SEARCH ================= */
 function doSearch(){
-  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const raw = (document.getElementById('searchInput').value || '').trim();
+  const q = raw.toLowerCase();
   if(!q) return;
 
+  // Prefer exact match by Grave ID, then exact match by Owner, then prefix matches
   const hit =
     gravesIndex.find(x => x.idLower === q) ||
-    gravesIndex.find(x => x.idLower.startsWith(q));
+    gravesIndex.find(x => x.ownerLower === q) ||
+    gravesIndex.find(x => x.idLower.startsWith(q)) ||
+    gravesIndex.find(x => x.ownerLower.startsWith(q));
 
   if(hit && hit.clickLayer){
     map.fitBounds(hit.clickLayer.getBounds(), {maxZoom: MAX_Z});
