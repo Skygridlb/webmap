@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
+<!-- ✅ ADDED: Leaflet Rotate Plugin CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.css"/>
+
 <style>
 html,body{height:100%;margin:0;}
 #map{height:100%;width:100%;}
@@ -173,7 +176,7 @@ html,body{height:100%;margin:0;}
     <div class="brandRole">GEOSPATIAL ENGINEER</div>
     <div class="brandContact">
       +961 71 709 417<br>
-      fadi@skygridlb.com
+      <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a7c1c6c3cee7d4ccdec0d5cec3cbc589c4c8ca">[email&#160;protected]</a>
     </div>
 
     <div class="socialRow">
@@ -188,7 +191,10 @@ html,body{height:100%;margin:0;}
 
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- ✅ ADDED: Leaflet Rotate Plugin JS (must come after Leaflet) -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
 <script>
 /* ================= SETTINGS ================= */
@@ -198,20 +204,54 @@ const GRAVE_LABEL_Z = 22;
 const STREET_LABEL_Z = 19;
 
 /* ================= MAP INIT ================= */
+// ✅ CHANGED: added rotate:true, rotateControl:true, bearing:90
+// bearing: 90  → rotates map 90° clockwise (East becomes "up")
+// Change to -90 for counter-clockwise, or any angle that fits your cemetery layout
 var map = L.map('map', {
-  minZoom: MIN_Z,
+  minZoom: 10,   // ✅ Allow zooming out to see surrounding satellite context; cemetery tiles appear from z16+
   maxZoom: MAX_Z,
   tap: true,
   tapTolerance: 25,
   zoomSnap: 1,
-  zoomDelta: 1
+  zoomDelta: 1,
+  rotate: true,        // ✅ Enable rotation support
+  rotateControl: {     // ✅ Adds a compass/reset-north button (top-left)
+    closeOnZeroBearing: false
+  },
+  bearing: 90          // ✅ Initial bearing in degrees (90 = rotate 90° clockwise)
 }).setView([34.38106, 35.90435], 18);
 
-/* ================= RASTER TILE LAYER ================= */
-L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
+/* ================= BASEMAP (satellite background, no zoom limits) ================= */
+// ✅ ADDED: ESRI World Imagery satellite basemap as background
+// Shows real satellite imagery outside the cemetery tile area
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: MAX_Z,
+    maxNativeZoom: 19  // ESRI goes up to z19 natively; Leaflet will stretch beyond that
+  }
+).addTo(map);
+
+/* ================= LOCAL CEMETERY TILE LAYER (on top of basemap) ================= */
+// mix-blend-mode:multiply removes white background without changing tiles:
+//   white (255,255,255) x any satellite color = that color → white vanishes
+//   real graveyard imagery colors are fully preserved
+const cemeteryLayer = L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
-  maxZoom: MAX_Z
+  maxZoom: MAX_Z,
+  opacity: 1,
+  errorTileUrl: ''
 }).addTo(map);
+
+// Apply blend mode as soon as the layer container exists
+function applyBlendMode() {
+  const container = cemeteryLayer.getContainer ? cemeteryLayer.getContainer() : null;
+  if (container) container.style.mixBlendMode = 'multiply';
+}
+cemeteryLayer.on('add', applyBlendMode);
+cemeteryLayer.on('tileload', applyBlendMode);
+applyBlendMode();
 
 /* ================= REGISTRIES ================= */
 var graveVisibleLayers = []; 
@@ -276,21 +316,20 @@ fetch('data/Graves.geojson')
   .then(data => {
     // ONE Robust Layer for both display and interaction
     L.geoJSON(data, {
-      interactive: true, // ✅ MUST be true for clicks
+      interactive: true,
       filter: (f) => {
         try{
           const g = f && f.geometry;
           const c = g && g.coordinates;
-          // drop features with empty geometry (prevents crash)
           return Array.isArray(c) && c.length > 0;
         }catch(e){ return false; }
       },
       style: { 
-        color: '#ff0000',      // Red Outline
+        color: '#ff0000',
         weight: 1.5, 
-        fill: true,            // ✅ Fill MUST be true to catch clicks inside
+        fill: true,
         fillColor: '#ffffff', 
-        fillOpacity: 0.01      // ✅ 1% opacity (invisible to eye, visible to mouse)
+        fillOpacity: 0.01
       },
       onEachFeature: (f, l) => {
         const p = f.properties || {};
@@ -298,7 +337,6 @@ fetch('data/Graves.geojson')
         const owner = (p.Owner || p.Owner_Name || p.OwnerName || p.Name || p.NAME || '').toString();
         const streetName = (p.StreetName || '').toString();
 
-        // 1. Setup Popup
         const nav = googleNavLinkFromLayer(l);
         const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
         
@@ -313,7 +351,6 @@ fetch('data/Graves.geojson')
           </div>
         `);
 
-        // 2. Hover Highlight (Yellow)
         l.on('mouseover', function() { 
           this.setStyle({ color: '#ffeb3b', weight: 3, fillOpacity: 0.2 }); 
           this.bringToFront(); 
@@ -322,7 +359,6 @@ fetch('data/Graves.geojson')
           this.setStyle({ color: '#ff0000', weight: 1.5, fillOpacity: 0.01 }); 
         });
 
-        // 3. Register for Labels & Search
         l._labelText = id;
         graveVisibleLayers.push(l);
         
@@ -332,7 +368,6 @@ fetch('data/Graves.geojson')
           clickLayer: l
         });
 
-        // 4. Add Search Suggestions
         if(id) addSuggestion(id);
         if(owner) addSuggestion(owner);
       }
@@ -484,12 +519,10 @@ function doSearch(){
   if(hit && hit.clickLayer){
     map.fitBounds(hit.clickLayer.getBounds(), {maxZoom: MAX_Z});
     hit.clickLayer.openPopup();
-    // Highlight effect
     hit.clickLayer.setStyle({color:'yellow', weight:4, fillOpacity:0.4});
     setTimeout(()=>{ hit.clickLayer.setStyle({color:'#ff0000', weight:1.5, fillOpacity:0.01}); }, 3000);
   }
 }
-
 document.getElementById('searchBtn').onclick = doSearch;
 document.getElementById('clearBtn').onclick = ()=>{ document.getElementById('searchInput').value=''; };
 document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
