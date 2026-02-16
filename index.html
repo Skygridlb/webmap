@@ -23,7 +23,8 @@ html,body{height:100%;margin:0;}
 #topUI{
   position:fixed;
   top:env(safe-area-inset-top,0px);
-  left:40px; right:0;
+  left:0; 
+  right:0;   /* Full width */
   z-index:2000;
   display:flex;
   flex-direction:column;
@@ -41,6 +42,7 @@ html,body{height:100%;margin:0;}
   align-items:center;
   font-family:Arial,sans-serif;
   pointer-events:auto;
+  /* Full width, no max-width */
 }
 #searchInput{
   flex:1;
@@ -70,6 +72,25 @@ html,body{height:100%;margin:0;}
   pointer-events:auto;
 }
 #partnerLogo img{height:40px;}
+
+#publishedDate{
+  align-self:flex-end;
+  background:#fff;
+  padding:4px 8px;
+  border-radius:8px;
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
+  pointer-events:auto;
+}
+
+/* ================= LOWER MAP CONTROLS ================= */
+/* Push Leaflet zoom buttons down to avoid overlap with search */
+.leaflet-top.leaflet-left {
+  top: 80px !important;  /* Push down below search bar */
+}
+
+.leaflet-top.leaflet-right {
+  top: 80px !important;  /* Push rotation control down too */
+}
 
 /* ================= BRAND CARD ================= */
 #brandBox{
@@ -160,6 +181,10 @@ html,body{height:100%;margin:0;}
   <div id="partnerLogo">
     <img src="logo/Maronite.png" alt="Maronite">
   </div>
+  
+  <div id="publishedDate">
+    <div style="font-size:9px;font-weight:600;margin-top:2px;color:#000;">Feb 2026</div>
+  </div>
 </div>
 
 <div id="brandBox">
@@ -189,12 +214,8 @@ html,body{height:100%;margin:0;}
 
 <div id="map"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- ✅ ADDED: Leaflet Rotate Plugin JS (must come after Leaflet) -->
 <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
-
 
 <script>
 /* ================= SETTINGS ================= */
@@ -285,23 +306,21 @@ fetch('data/Graves.geojson')
     return r.json();
   })
   .then(data => {
-    // ONE Robust Layer for both display and interaction
     L.geoJSON(data, {
-      interactive: true, // ✅ MUST be true for clicks
+      interactive: true,
       filter: (f) => {
         try{
           const g = f && f.geometry;
           const c = g && g.coordinates;
-          // drop features with empty geometry (prevents crash)
           return Array.isArray(c) && c.length > 0;
         }catch(e){ return false; }
       },
       style: { 
-        color: '#ff0000',      // Red Outline
+        color: '#ff0000',
         weight: 1.5, 
-        fill: true,            // ✅ Fill MUST be true to catch clicks inside
+        fill: true,
         fillColor: '#ffffff', 
-        fillOpacity: 0.01      // ✅ 1% opacity (invisible to eye, visible to mouse)
+        fillOpacity: 0.01
       },
       onEachFeature: (f, l) => {
         const p = f.properties || {};
@@ -309,7 +328,6 @@ fetch('data/Graves.geojson')
         const owner = (p.Owner || p.Owner_Name || p.OwnerName || p.Name || p.NAME || '').toString();
         const streetName = (p.StreetName || '').toString();
 
-        // 1. Setup Popup
         const nav = googleNavLinkFromLayer(l);
         const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
         
@@ -324,7 +342,6 @@ fetch('data/Graves.geojson')
           </div>
         `);
 
-        // 2. Hover Highlight (Yellow)
         l.on('mouseover', function() { 
           this.setStyle({ color: '#ffeb3b', weight: 3, fillOpacity: 0.2 }); 
           this.bringToFront(); 
@@ -333,7 +350,6 @@ fetch('data/Graves.geojson')
           this.setStyle({ color: '#ff0000', weight: 1.5, fillOpacity: 0.01 }); 
         });
 
-        // 3. Register for Labels & Search
         l._labelText = id;
         graveVisibleLayers.push(l);
         
@@ -343,7 +359,6 @@ fetch('data/Graves.geojson')
           clickLayer: l
         });
 
-        // 4. Add Search Suggestions
         if(id) addSuggestion(id);
         if(owner) addSuggestion(owner);
       }
@@ -423,9 +438,16 @@ function scheduleStreetRotate(layer){
     el.innerHTML = `<div class="leaflet-tooltip-content">${txt}</div>`;
     inner = el.querySelector('.leaflet-tooltip-content');
   }
-  const ang = lineAngleDeg(layer);
+  
+  // Calculate angle in screen space
+  const screenAngle = lineAngleDeg(layer);
+  
+  // Get map bearing (rotation) and compensate
+  const mapBearing = map.getBearing ? map.getBearing() : 0;
+  const adjustedAngle = screenAngle - mapBearing;
+  
   inner.style.transformOrigin = 'center center';
-  inner.style.transform = `rotate(${ang}deg) translateY(-12px)`;
+  inner.style.transform = `rotate(${adjustedAngle}deg) translateY(-12px)`;
   inner.style.pointerEvents = 'none';
 }
 
@@ -495,7 +517,6 @@ function doSearch(){
   if(hit && hit.clickLayer){
     map.fitBounds(hit.clickLayer.getBounds(), {maxZoom: MAX_Z});
     hit.clickLayer.openPopup();
-    // Highlight effect
     hit.clickLayer.setStyle({color:'yellow', weight:4, fillOpacity:0.4});
     setTimeout(()=>{ hit.clickLayer.setStyle({color:'#ff0000', weight:1.5, fillOpacity:0.01}); }, 3000);
   }
