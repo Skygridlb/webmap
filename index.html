@@ -6,9 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<!-- ✅ ADDED: Leaflet Rotate Plugin CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.css"/>
-
 <style>
 html,body{height:100%;margin:0;}
 #map{height:100%;width:100%;}
@@ -25,8 +22,7 @@ html,body{height:100%;margin:0;}
 #topUI{
   position:fixed;
   top:env(safe-area-inset-top,0px);
-  left:40px;
-  right:0;        /* leave room for Leaflet zoom controls on the right */
+  left:0; right:0;
   z-index:2000;
   display:flex;
   flex-direction:column;
@@ -44,7 +40,6 @@ html,body{height:100%;margin:0;}
   align-items:center;
   font-family:Arial,sans-serif;
   pointer-events:auto;
-  max-width:480px;   /* cap width so it stays compact and never reaches zoom controls */
 }
 #searchInput{
   flex:1;
@@ -178,7 +173,7 @@ html,body{height:100%;margin:0;}
     <div class="brandRole">GEOSPATIAL ENGINEER</div>
     <div class="brandContact">
       +961 71 709 417<br>
-      <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a7c1c6c3cee7d4ccdec0d5cec3cbc589c4c8ca">[email&#160;protected]</a>
+      fadi@skygridlb.com
     </div>
 
     <div class="socialRow">
@@ -193,14 +188,7 @@ html,body{height:100%;margin:0;}
 
 <div id="map"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- ✅ ADDED: Leaflet Rotate Plugin JS (must come after Leaflet) -->
-<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
-
-<!-- GeoJSON data loaded as JS variables -->
-<script src="data/Graves.js"></script>
-<script src="data/Streets.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 /* ================= SETTINGS ================= */
@@ -210,68 +198,20 @@ const GRAVE_LABEL_Z = 22;
 const STREET_LABEL_Z = 19;
 
 /* ================= MAP INIT ================= */
-// ✅ CHANGED: added rotate:true, rotateControl:true, bearing:90
-// bearing: 90  → rotates map 90° clockwise (East becomes "up")
-// Change to -90 for counter-clockwise, or any angle that fits your cemetery layout
 var map = L.map('map', {
-  minZoom: 10,   // ✅ Allow zooming out to see surrounding satellite context; cemetery tiles appear from z16+
+  minZoom: MIN_Z,
   maxZoom: MAX_Z,
   tap: true,
   tapTolerance: 25,
   zoomSnap: 1,
-  zoomDelta: 1,
-  rotate: true,        // ✅ Enable rotation support
-  rotateControl: {     // ✅ Adds a compass/reset-north button (top-left)
-    closeOnZeroBearing: false
-  },
-  bearing: 90          // ✅ Initial bearing in degrees (90 = rotate 90° clockwise)
+  zoomDelta: 1
 }).setView([34.38106, 35.90435], 18);
 
-/* ================= BASEMAP (satellite background, no zoom limits) ================= */
-// ✅ ADDED: ESRI World Imagery satellite basemap as background
-// Shows real satellite imagery outside the cemetery tile area
-L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
-    maxZoom: MAX_Z,
-    maxNativeZoom: 19  // ESRI native max is z19; Leaflet stretches tiles for z20-23
-  }
-).addTo(map);
-
-/* ================= LOCAL CEMETERY TILE LAYER (shown only at zoom >= 16) ================= */
-const cemeteryLayer = L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
+/* ================= RASTER TILE LAYER ================= */
+L.tileLayer('tiles/{z}/{x}/{y}.jpg', {
   minZoom: MIN_Z,
-  maxZoom: MAX_Z,
-  opacity: 1,
-  errorTileUrl: ''
-});
-
-// Apply blend mode to remove white background
-function applyBlendMode() {
-  const container = cemeteryLayer.getContainer ? cemeteryLayer.getContainer() : null;
-  if (container) container.style.mixBlendMode = 'multiply';
-}
-cemeteryLayer.on('add', applyBlendMode);
-cemeteryLayer.on('tileload', applyBlendMode);
-
-// Show local tiles at z>=16, hide below (ESRI takes over)
-function syncCemeteryVisibility() {
-  const z = map.getZoom();
-  if (z >= MIN_Z) {
-    if (!map.hasLayer(cemeteryLayer)) {
-      cemeteryLayer.addTo(map);
-      applyBlendMode();
-    }
-  } else {
-    if (map.hasLayer(cemeteryLayer)) {
-      map.removeLayer(cemeteryLayer);
-    }
-  }
-}
-
-map.on('zoomend', syncCemeteryVisibility);
-syncCemeteryVisibility(); // run on init
+  maxZoom: MAX_Z
+}).addTo(map);
 
 /* ================= REGISTRIES ================= */
 var graveVisibleLayers = []; 
@@ -328,23 +268,29 @@ function googleNavLinkFromLayer(layer){
 
 
 /* ================= LOAD GRAVES (SINGLE CLICKABLE LAYER) ================= */
-// GeoJSON is loaded via <script src="data/Graves.geojson"> which sets window.gravesData
-function loadGraves(data) {
+fetch('data/Graves.geojson')
+  .then(r => {
+    if (!r.ok) throw new Error("Grave GeoJSON not found");
+    return r.json();
+  })
+  .then(data => {
+    // ONE Robust Layer for both display and interaction
     L.geoJSON(data, {
-      interactive: true,
+      interactive: true, // ✅ MUST be true for clicks
       filter: (f) => {
         try{
           const g = f && f.geometry;
           const c = g && g.coordinates;
+          // drop features with empty geometry (prevents crash)
           return Array.isArray(c) && c.length > 0;
         }catch(e){ return false; }
       },
       style: { 
-        color: '#ff0000',
+        color: '#ff0000',      // Red Outline
         weight: 1.5, 
-        fill: true,
+        fill: true,            // ✅ Fill MUST be true to catch clicks inside
         fillColor: '#ffffff', 
-        fillOpacity: 0.01
+        fillOpacity: 0.01      // ✅ 1% opacity (invisible to eye, visible to mouse)
       },
       onEachFeature: (f, l) => {
         const p = f.properties || {};
@@ -352,6 +298,7 @@ function loadGraves(data) {
         const owner = (p.Owner || p.Owner_Name || p.OwnerName || p.Name || p.NAME || '').toString();
         const streetName = (p.StreetName || '').toString();
 
+        // 1. Setup Popup
         const nav = googleNavLinkFromLayer(l);
         const photoUrl = 'photos/' + encodeURIComponent(id) + '.jpg';
         
@@ -366,6 +313,7 @@ function loadGraves(data) {
           </div>
         `);
 
+        // 2. Hover Highlight (Yellow)
         l.on('mouseover', function() { 
           this.setStyle({ color: '#ffeb3b', weight: 3, fillOpacity: 0.2 }); 
           this.bringToFront(); 
@@ -374,6 +322,7 @@ function loadGraves(data) {
           this.setStyle({ color: '#ff0000', weight: 1.5, fillOpacity: 0.01 }); 
         });
 
+        // 3. Register for Labels & Search
         l._labelText = id;
         graveVisibleLayers.push(l);
         
@@ -383,41 +332,35 @@ function loadGraves(data) {
           clickLayer: l
         });
 
+        // 4. Add Search Suggestions
         if(id) addSuggestion(id);
         if(owner) addSuggestion(owner);
       }
     }).addTo(map);
 
     refreshLabels();
-}
-
-if (typeof gravesData !== 'undefined') {
-  loadGraves(gravesData);
-} else {
-  console.error("gravesData not found — make sure data/Graves.geojson starts with: var gravesData = ...");
-  alert("Error: gravesData not found. Check that data/Graves.geojson is loaded as a script and starts with: var gravesData = ");
-}
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Error: Could not load graves. Check if data/Graves.geojson exists.");
+  });
 
 /* ================= LOAD STREETS ================= */
-function loadStreets(data) {
-  L.geoJSON(data, {
-    style:{color:'rgb(85,255,0)',weight:3.5,opacity:0.9},
-    onEachFeature:(f,l)=>{
-      const p=f.properties||{};
-      const name=(p.StreetName || p.Name_AR || p.Name || p.NAME || '').toString();
-      l._streetName = name;
-      l.bindPopup(`<b>Street:</b> ${escapeHtml(name || '—')}`);
-      streetsLayers.push(l);
-    }
-  }).addTo(map);
-  refreshLabels();
-}
-
-if (typeof streetsData !== 'undefined') {
-  loadStreets(streetsData);
-} else {
-  console.error("streetsData not found — make sure data/Streets.js starts with: var streetsData = ...");
-}
+fetch('data/Streets.geojson')
+  .then(r => r.json())
+  .then(data => {
+    L.geoJSON(data,{
+      style:{color:'rgb(85,255,0)',weight:3.5,opacity:0.9},
+      onEachFeature:(f,l)=>{
+        const p=f.properties||{};
+        const name=(p.StreetName || p.Name_AR || p.Name || p.NAME || '').toString();
+        l._streetName = name;
+        l.bindPopup(`<b>Street:</b> ${escapeHtml(name || '—')}`);
+        streetsLayers.push(l);
+      }
+    }).addTo(map);
+    refreshLabels();
+  });
 
 /* ================= LABEL REFRESH LOGIC ================= */
 function linePixelLength(layer){
@@ -541,10 +484,12 @@ function doSearch(){
   if(hit && hit.clickLayer){
     map.fitBounds(hit.clickLayer.getBounds(), {maxZoom: MAX_Z});
     hit.clickLayer.openPopup();
+    // Highlight effect
     hit.clickLayer.setStyle({color:'yellow', weight:4, fillOpacity:0.4});
     setTimeout(()=>{ hit.clickLayer.setStyle({color:'#ff0000', weight:1.5, fillOpacity:0.01}); }, 3000);
   }
 }
+
 document.getElementById('searchBtn').onclick = doSearch;
 document.getElementById('clearBtn').onclick = ()=>{ document.getElementById('searchInput').value=''; };
 document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
