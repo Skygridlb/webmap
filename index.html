@@ -444,7 +444,7 @@ function scheduleStreetRotate(layer){
   
   // Get map bearing (rotation) and compensate
   const mapBearing = map.getBearing ? map.getBearing() : 0;
-  const adjustedAngle = screenAngle - mapBearing;
+  const adjustedAngle = screenAngle + mapBearing;
   
   inner.style.transformOrigin = 'center center';
   inner.style.transform = `rotate(${adjustedAngle}deg) translateY(-12px)`;
