@@ -5,6 +5,7 @@
 <title>Zgharta Cemetery Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.css"/>
 
 <style>
 html,body{height:100%;margin:0;}
@@ -22,7 +23,7 @@ html,body{height:100%;margin:0;}
 #topUI{
   position:fixed;
   top:env(safe-area-inset-top,0px);
-  left:0; right:0;
+  left:40px; right:0;
   z-index:2000;
   display:flex;
   flex-direction:column;
@@ -173,7 +174,7 @@ html,body{height:100%;margin:0;}
     <div class="brandRole">GEOSPATIAL ENGINEER</div>
     <div class="brandContact">
       +961 71 709 417<br>
-      fadi@skygridlb.com
+      <a href="mailto:fadi@skygridlb.com" style="color:#000;">fadi@skygridlb.com</a>
     </div>
 
     <div class="socialRow">
@@ -188,7 +189,12 @@ html,body{height:100%;margin:0;}
 
 <div id="map"></div>
 
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- ✅ ADDED: Leaflet Rotate Plugin JS (must come after Leaflet) -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
 
 <script>
 /* ================= SETTINGS ================= */
@@ -204,7 +210,12 @@ var map = L.map('map', {
   tap: true,
   tapTolerance: 25,
   zoomSnap: 1,
-  zoomDelta: 1
+  zoomDelta: 1,
+  rotate: true,
+  rotateControl: {
+    closeOnZeroBearing: false
+  },
+  bearing: 90 
 }).setView([34.38106, 35.90435], 18);
 
 /* ================= RASTER TILE LAYER ================= */
